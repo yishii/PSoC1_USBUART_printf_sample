@@ -1,0 +1,287 @@
+ 0000                   cpu LMM
+                        .module main.c
+                        .area text(rom, con, rel)
+ 0000                   .dbfile ./main.c
+ 0000                   .dbfunc e main _main fV
+ 0000           ;            ram -> X+2
+ 0000           ;              i -> X+0
+ 0000           _main::
+ 0000                   .dbline -1
+ 0000 10                push X
+ 0001 4F                mov X,SP
+ 0002 380C              add SP,12
+ 0004                   .dbline 21
+ 0004           ; /** 
+ 0004           ;  * @file  main.c
+ 0004           ;  * @brief PSoC USBUARTテスト メイン処理
+ 0004           ;  *
+ 0004           ;  * @author Yasuhiro ISHII
+ 0004           ;  * @date 2007-01-01
+ 0004           ;  * @version $Id: $
+ 0004           ;  *
+ 0004           ;  */
+ 0004           ; 
+ 0004           ; #include <m8c.h>        // part specific constants and macros
+ 0004           ; #include <stdlib.h>
+ 0004           ; #include "common.h"
+ 0004           ; #include "PSoCAPI.h"    // PSoC API definitions for all User Modules
+ 0004           ; 
+ 0004           ; static void usbuart_stdout(char* str);
+ 0004           ; 
+ 0004           ; BYTE pData[32];  
+ 0004           ; int Len;
+ 0004           ; 
+ 0004           ; void main(void){
+ 0004                   .dbline 22
+ 0004           ;       int i = 30;
+ 0004 56011E            mov [X+1],30
+ 0007 560000            mov [X+0],0
+ 000A                   .dbline 25
+ 000A           ;       char ram[10];
+ 000A           ; 
+ 000A           ;       M8C_EnableGInt;                                                 // Global Interrupts有効化
+ 000A 7101                      or  F, 01h
+ 000C           
+ 000C                   .dbline 27
+ 000C           ; 
+ 000C           ;       USBUART_Start(USBUART_5V_OPERATION);
+ 000C 10                push X
+ 000D 5003              mov A,3
+ 000F 7C0000            xcall _USBUART_Start
+ 0012 20                pop X
+ 0013                   .dbline 28
+ 0013           ;       tprintf_SetCallBack(usbuart_stdout);    // tprintf文字列出力用コールバック関数を登録
+ 0013 5000              mov A,>PL_usbuart_stdout
+ 0015 08                push A
+ 0016 5000              mov A,<PL_usbuart_stdout
+ 0018 08                push A
+ 0019 7C0000            xcall _tprintf_SetCallBack
+ 001C 38FE              add SP,-2
+ 001E           L2:
+ 001E                   .dbline 29
+ 001E           L3:
+ 001E                   .dbline 29
+ 001E           ;       while(!USBUART_Init());                                 // USBUART初期化待ち
+ 001E 10                push X
+ 001F 7C0000            xcall _USBUART_Init
+ 0022 62D000            mov REG[0xd0],>__r0
+ 0025 20                pop X
+ 0026 3900              cmp A,0
+ 0028 AFF5              jz L2
+ 002A 807D              xjmp L6
+ 002C           L5:
+ 002C                   .dbline 37
+ 002C           ; 
+ 002C           ;       ///////////////////////////////////////////////////////////////////////////
+ 002C           ;       // 初期化完了
+ 002C           ;       ///////////////////////////////////////////////////////////////////////////
+ 002C           ; 
+ 002C           ;       // 通常処理
+ 002C           ; 
+ 002C           ;       while(1){
+ 002C                   .dbline 41
+ 002C           ; 
+ 002C           ;               // 何かキー入力があるまで待つ
+ 002C           ; 
+ 002C           ;               Len = USBUART_bGetRxCount();       //Get count of ready data
+ 002C 10                push X
+ 002D 7C0000            xcall _USBUART_bGetRxCount
+ 0030 20                pop X
+ 0031 62D000            mov REG[0xd0],>_Len
+ 0034 5301              mov [_Len+1],A
+ 0036 550000            mov [_Len],0
+ 0039                   .dbline 42
+ 0039           ;               if (Len){
+ 0039 3C0000            cmp [_Len],0
+ 003C B006              jnz X1
+ 003E 3C0100            cmp [_Len+1],0
+ 0041 A066              jz L8
+ 0043           X1:
+ 0043                   .dbline 42
+ 0043                   .dbline 43
+ 0043           ;                       USBUART_ReadAll(pData);        //Read all data rom RX
+ 0043 10                push X
+ 0044 5000              mov A,>_pData
+ 0046 08                push A
+ 0047 5000              mov A,<_pData
+ 0049 5C                mov X,A
+ 004A 18                pop A
+ 004B 7C0000            xcall _USBUART_ReadAll
+ 004E 20                pop X
+ 004F                   .dbline 46
+ 004F           ; 
+ 004F           ;                       // キー入力があったら、テスト用のメッセージを表示する
+ 004F           ;                       {
+ 004F                   .dbline 47
+ 004F           ;                               i++;            // インクリメント
+ 004F 7701              inc [X+1]
+ 0051 0F0000            adc [X+0],0
+ 0054                   .dbline 49
+ 0054           ; 
+ 0054           ;                               tstrcpy(ram,"R A M!");
+ 0054 502E              mov A,>L10
+ 0056 08                push A
+ 0057 502E              mov A,<L10
+ 0059 08                push A
+ 005A 62D000            mov REG[0xd0],>__r0
+ 005D 5A00              mov [__r1],X
+ 005F 060002            add [__r1],2
+ 0062 5003              mov A,3
+ 0064 08                push A
+ 0065 5100              mov A,[__r1]
+ 0067 08                push A
+ 0068 7C0000            xcall _tstrcpy
+ 006B                   .dbline 51
+ 006B           ; 
+ 006B           ;                               ctprintf("i = %d(Hex:%X)(ROM:%S)(RAM:%s) %c%c%c\n\r",i,i,"Hello",ram,0x31,0x32,0x33);
+ 006B 5000              mov A,0
+ 006D 08                push A
+ 006E 5033              mov A,51
+ 0070 08                push A
+ 0071 5000              mov A,0
+ 0073 08                push A
+ 0074 5032              mov A,50
+ 0076 08                push A
+ 0077 5000              mov A,0
+ 0079 08                push A
+ 007A 5031              mov A,49
+ 007C 08                push A
+ 007D 62D000            mov REG[0xd0],>__r0
+ 0080 5A00              mov [__r1],X
+ 0082 060002            add [__r1],2
+ 0085 5003              mov A,3
+ 0087 08                push A
+ 0088 5100              mov A,[__r1]
+ 008A 08                push A
+ 008B 5000              mov A,>L12
+ 008D 08                push A
+ 008E 5000              mov A,<L12
+ 0090 08                push A
+ 0091 5200              mov A,[X+0]
+ 0093 08                push A
+ 0094 5201              mov A,[X+1]
+ 0096 08                push A
+ 0097 5200              mov A,[X+0]
+ 0099 08                push A
+ 009A 5201              mov A,[X+1]
+ 009C 08                push A
+ 009D 5006              mov A,>L11
+ 009F 08                push A
+ 00A0 5006              mov A,<L11
+ 00A2 08                push A
+ 00A3 7C0000            xcall _ctprintf
+ 00A6 38EC              add SP,-20
+ 00A8                   .dbline 52
+ 00A8           ;                       }
+ 00A8                   .dbline 53
+ 00A8           ;               }
+ 00A8           L8:
+ 00A8                   .dbline 54
+ 00A8           L6:
+ 00A8                   .dbline 37
+ 00A8 8F83              xjmp L5
+ 00AA           X0:
+ 00AA                   .dbline -2
+ 00AA                   .dbline 56
+ 00AA           ;       }
+ 00AA           ; 
+ 00AA           ; }
+ 00AA           L1:
+ 00AA 38F4              add SP,-12
+ 00AC 20                pop X
+ 00AD                   .dbline 0 ; func end
+ 00AD 8FFF              jmp .
+ 00AF                   .dbsym l ram 2 A[10:10]c
+ 00AF                   .dbsym l i 0 I
+ 00AF                   .dbend
+ 00AF                   .dbfunc s usbuart_stdout _usbuart_stdout fV
+ 00AF           ;            len -> X+0
+ 00AF           ;            str -> X-5
+ 00AF           _usbuart_stdout:
+ 00AF                   .dbline -1
+ 00AF 10                push X
+ 00B0 4F                mov X,SP
+ 00B1 3802              add SP,2
+ 00B3                   .dbline 61
+ 00B3           ; 
+ 00B3           ; /** USBUARTへ文字列出力する
+ 00B3           ;  * @param str 出力したいASCIIZ文字列に対するポインタ
+ 00B3           ;  */
+ 00B3           ; static void usbuart_stdout(char* str){
+ 00B3                   .dbline 64
+ 00B3           ;       int len;
+ 00B3           ; 
+ 00B3           ;       len = tstrlen(str) + 1;
+ 00B3 52FB              mov A,[X-5]
+ 00B5 08                push A
+ 00B6 52FC              mov A,[X-4]
+ 00B8 08                push A
+ 00B9 7C0000            xcall _tstrlen
+ 00BC 38FE              add SP,-2
+ 00BE 62D000            mov REG[0xd0],>__r0
+ 00C1 5100              mov A,[__r1]
+ 00C3 0101              add A,1
+ 00C5 5401              mov [X+1],A
+ 00C7 5100              mov A,[__r0]
+ 00C9 0900              adc A,0
+ 00CB 5400              mov [X+0],A
+ 00CD           L14:
+ 00CD                   .dbline 66
+ 00CD           L15:
+ 00CD                   .dbline 66
+ 00CD           ; 
+ 00CD           ;       while (!USBUART_bTxIsReady());
+ 00CD 10                push X
+ 00CE 7C0000            xcall _USBUART_bTxIsReady
+ 00D1 62D000            mov REG[0xd0],>__r0
+ 00D4 20                pop X
+ 00D5 3900              cmp A,0
+ 00D7 AFF5              jz L14
+ 00D9                   .dbline 67
+ 00D9           ;       USBUART_Write(str,len);
+ 00D9 5201              mov A,[X+1]
+ 00DB 10                push X
+ 00DC 08                push A
+ 00DD 52FB              mov A,[X-5]
+ 00DF 08                push A
+ 00E0 52FC              mov A,[X-4]
+ 00E2 08                push A
+ 00E3 7C0000            xcall _USBUART_Write
+ 00E6 38FD              add SP,-3
+ 00E8 20                pop X
+ 00E9                   .dbline -2
+ 00E9                   .dbline 69
+ 00E9           ; 
+ 00E9           ; }
+ 00E9           L13:
+ 00E9 38FE              add SP,-2
+ 00EB 20                pop X
+ 00EC                   .dbline 0 ; func end
+ 00EC 7F                ret
+ 00ED                   .dbsym l len 0 I
+ 00ED                   .dbsym l str -5 pc
+ 00ED                   .dbend
+                        .area data(ram, con, rel)
+ 0000                   .dbfile ./main.c
+ 0000           _Len::
+ 0000 0000              .byte 0,0
+ 0002                   .dbsym e Len _Len I
+                        .area data(ram, con, rel)
+ 0000                   .dbfile ./main.c
+ 0000           _pData::
+ 0000 00000000000000000000      .word 0,0,0,0,0
+ 000A 00000000000000000000      .word 0,0,0,0,0
+ 0014 00000000000000000000      .word 0,0,0,0,0
+ 001E 0000              .byte 0,0
+ 0020                   .dbsym e pData _pData A[32:32]c
+                        .area lit(rom, con, rel)
+ 0000           L12:
+ 0000 48656C6C6F00      .byte 'H,'e,'l,'l,'o,0
+ 0006           L11:
+ 0006 69203D202564284865783A2558292852  .byte 'i,32,61,32,37,'d,40,'H,'e,'x,58,37,'X,41,40,'R
+ 0016 4F4D3A2553292852414D3A2573292025  .byte 'O,'M,58,37,'S,41,40,'R,'A,'M,58,37,'s,41,32,37
+ 0026 63256325630A0D00  .byte 'c,37,'c,37,'c,10,13,0
+ 002E           L10:
+ 002E 522041204D2100    .byte 'R,32,'A,32,'M,33,0
+                        .area func_lit
+ 0000 00AF      PL_usbuart_stdout:      .word _usbuart_stdout

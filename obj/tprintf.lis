@@ -1,0 +1,202 @@
+ 0000                   cpu LMM
+                        .module tprintf.c
+                        .area text(rom, con, rel)
+ 0000                   .dbfile ./tprintf.c
+ 0000                   .dbfunc e ctprintf _ctprintf fI
+ 0000           ;            len -> X+82
+ 0000           ;             ap -> X+80
+ 0000           ;            buf -> X+0
+ 0000           ;            fmt -> X-5
+ 0000           _ctprintf::
+ 0000                   .dbline -1
+ 0000 10                push X
+ 0001 4F                mov X,SP
+ 0002 3854              add SP,84
+ 0004                   .dbline 29
+ 0004           ; /*
+ 0004           ;   Tiny printf module
+ 0004           ;    for Embedded microcontrollers
+ 0004           ;    Copyright(C) 2005-2006 Yasuhiro ISHII
+ 0004           ;    File Version : 0.3
+ 0004           ; 
+ 0004           ;    (内部でtsprintfとuart_txsを使用します)
+ 0004           ; 
+ 0004           ;    0.3 : 送出関数をコールバックに変更
+ 0004           ;    0.2 : vtsprintfを作成して渡すようにした
+ 0004           ;    0.1 : First version
+ 0004           ; */
+ 0004           ; 
+ 0004           ; //#include <stdarg.h>
+ 0004           ; #include "common.h"
+ 0004           ; #include "./tsprintf.h"
+ 0004           ; 
+ 0004           ; int ctprintf(const char* , ...);
+ 0004           ; void tprintf_SetCallBack(void (*)(char*));
+ 0004           ; 
+ 0004           ; static void (*uart_txs)(char*);
+ 0004           ; 
+ 0004           ; /** const文字列用Tiny printf関数
+ 0004           ;  * @param fmt 書式指定文字列
+ 0004           ;  * @param [argument]... 省略可能な引数
+ 0004           ;  * @return 生成文字の文字数
+ 0004           ;  * @note fmtに指定する文字列はROM内に確保したものを指定してください
+ 0004           ;  */
+ 0004           ; int ctprintf(const char* fmt, ...){
+ 0004                   .dbline 35
+ 0004           ;       char buf[80];
+ 0004           ;       va_list ap;
+ 0004           ;       int len;
+ 0004           ; 
+ 0004           ;       // コールバックが設定されていない場合の確認
+ 0004           ;       if (uart_txs == NULL){
+ 0004 62D000            mov REG[0xd0],>_uart_txs
+ 0007 5101              mov A,[_uart_txs+1]
+ 0009 08                push A
+ 000A 5100              mov A,[_uart_txs]
+ 000C 62D000            mov REG[0xd0],>__r0
+ 000F 5300              mov [__r0],A
+ 0011 18                pop A
+ 0012 5300              mov [__r1],A
+ 0014 5100              mov A,[__r0]
+ 0016 10                push X
+ 0017 08                push A
+ 0018 5800              mov X,[__r1]
+ 001A 28                romx
+ 001B 5300              mov [__r0],A
+ 001D 18                pop A
+ 001E 75                inc X
+ 001F 0900              adc A,0
+ 0021 28                romx
+ 0022 20                pop X
+ 0023 3C0000            cmp [__r0],0
+ 0026 B010              jnz L2
+ 0028 3900              cmp A,0
+ 002A B00C              jnz L2
+ 002C           X0:
+ 002C                   .dbline 35
+ 002C                   .dbline 36
+ 002C           ;               return(-1);
+ 002C 62D000            mov REG[0xd0],>__r0
+ 002F 5500FF            mov [__r1],-1
+ 0032 5500FF            mov [__r0],-1
+ 0035 8065              xjmp L1
+ 0037           L2:
+ 0037                   .dbline 39
+ 0037           ;       }
+ 0037           ; 
+ 0037           ;       va_start(ap, fmt);
+ 0037 62D000            mov REG[0xd0],>__r0
+ 003A 5A00              mov [__r1],X
+ 003C 160005            sub [__r1],5
+ 003F 5100              mov A,[__r1]
+ 0041 5451              mov [X+81],A
+ 0043 565003            mov [X+80],3
+ 0046                   .dbline 41
+ 0046           ;       
+ 0046           ;       len = cvtsprintf(buf, fmt, ap);
+ 0046 5250              mov A,[X+80]
+ 0048 08                push A
+ 0049 5251              mov A,[X+81]
+ 004B 08                push A
+ 004C 52FB              mov A,[X-5]
+ 004E 08                push A
+ 004F 52FC              mov A,[X-4]
+ 0051 08                push A
+ 0052 5003              mov A,3
+ 0054 08                push A
+ 0055 10                push X
+ 0056 7C0000            xcall _cvtsprintf
+ 0059 38FA              add SP,-6
+ 005B 62D000            mov REG[0xd0],>__r0
+ 005E 5100              mov A,[__r1]
+ 0060 5453              mov [X+83],A
+ 0062 5100              mov A,[__r0]
+ 0064 5452              mov [X+82],A
+ 0066                   .dbline 43
+ 0066           ; 
+ 0066           ;       va_end(ap);
+ 0066                   .dbline 46
+ 0066           ; 
+ 0066           ;       // 出力用コールバック関数をコール
+ 0066           ;       (*uart_txs)(buf);
+ 0066 5003              mov A,3
+ 0068 08                push A
+ 0069 10                push X
+ 006A 62D000            mov REG[0xd0],>_uart_txs
+ 006D 5101              mov A,[_uart_txs+1]
+ 006F 08                push A
+ 0070 5100              mov A,[_uart_txs]
+ 0072 62D000            mov REG[0xd0],>__r0
+ 0075 5300              mov [__r0],A
+ 0077 18                pop A
+ 0078 5300              mov [__r1],A
+ 007A 5100              mov A,[__r0]
+ 007C 10                push X
+ 007D 08                push A
+ 007E 5800              mov X,[__r1]
+ 0080 28                romx
+ 0081 5300              mov [__r0],A
+ 0083 18                pop A
+ 0084 75                inc X
+ 0085 0900              adc A,0
+ 0087 28                romx
+ 0088 5300              mov [__r1],A
+ 008A 20                pop X
+ 008B 7C0000            xcall __icall
+ 008E 38FE              add SP,-2
+ 0090                   .dbline 48
+ 0090           ;       
+ 0090           ;       return(len);
+ 0090 62D000            mov REG[0xd0],>__r0
+ 0093 5253              mov A,[X+83]
+ 0095 5300              mov [__r1],A
+ 0097 5252              mov A,[X+82]
+ 0099 5300              mov [__r0],A
+ 009B                   .dbline -2
+ 009B           L1:
+ 009B 38AC              add SP,-84
+ 009D 20                pop X
+ 009E                   .dbline 0 ; func end
+ 009E 7F                ret
+ 009F                   .dbsym l len 82 I
+ 009F                   .dbsym l ap 80 pc
+ 009F                   .dbsym l buf 0 A[80:80]c
+ 009F                   .dbsym l fmt -5 pc
+ 009F                   .dbend
+ 009F                   .dbfunc e tprintf_SetCallBack _tprintf_SetCallBack fV
+ 009F           ;           func -> X-5
+ 009F           _tprintf_SetCallBack::
+ 009F                   .dbline -1
+ 009F 10                push X
+ 00A0 4F                mov X,SP
+ 00A1                   .dbline 55
+ 00A1           ; }
+ 00A1           ; 
+ 00A1           ; /** Type printf標準出力用関数をコールバック登録する
+ 00A1           ;  * @param func ASCIIZ文字列を出力できるvoid func(char*)型関数へのポインタ
+ 00A1           ;  * @note NULLを指定しないこと
+ 00A1           ;  */
+ 00A1           ; void tprintf_SetCallBack(void (*func)(char*)){
+ 00A1                   .dbline 57
+ 00A1           ; 
+ 00A1           ;       uart_txs = func;
+ 00A1 62D000            mov REG[0xd0],>_uart_txs
+ 00A4 52FC              mov A,[X-4]
+ 00A6 5301              mov [_uart_txs+1],A
+ 00A8 52FB              mov A,[X-5]
+ 00AA 5300              mov [_uart_txs],A
+ 00AC                   .dbline -2
+ 00AC                   .dbline 59
+ 00AC           ; 
+ 00AC           ; }
+ 00AC           L4:
+ 00AC 20                pop X
+ 00AD                   .dbline 0 ; func end
+ 00AD 7F                ret
+ 00AE                   .dbsym l func -5 pfV
+ 00AE                   .dbend
+                        .area data(ram, con, rel)
+ 0000                   .dbfile ./tprintf.c
+ 0000           _uart_txs:
+ 0000 0000              .byte 0,0
+ 0002                   .dbsym s uart_txs _uart_txs pfV

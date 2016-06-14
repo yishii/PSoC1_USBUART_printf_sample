@@ -1,0 +1,39 @@
+# DO NOT DELETE
+./obj/boot.o :  C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8ssc.inc\
+   C:\PSoC\USB_UA~3\lib\GLOBAL~1.INC C:\PSoC\USB_UA~3\memory.inc
+./obj/main.o :  ./lib/PSoCAPI.h ./lib/USBUART.h\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.h\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/_const.h\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/limits.h\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/stdlib.h\
+   C:\PSoC\USB_UA~3\common.h C:\PSoC\USB_UA~3\tprintf.h\
+   C:\PSoC\USB_UA~3\tsprintf.h C:\PSoC\USB_UA~3\tstring.h
+./obj/tprintf.o :  C:\PSoC\USB_UA~3\common.h C:\PSoC\USB_UA~3\tprintf.h\
+   C:\PSoC\USB_UA~3\tsprintf.h C:\PSoC\USB_UA~3\tstring.h
+./obj/tsprintf.o :  ./lib/PSoCAPI.h ./lib/USBUART.h\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.h\
+   C:\PSoC\USB_UA~3\common.h C:\PSoC\USB_UA~3\tprintf.h\
+   C:\PSoC\USB_UA~3\tsprintf.h C:\PSoC\USB_UA~3\tstring.h
+./obj/tstring.o :  C:\PSoC\USB_UA~3\tstring.h
+./lib/obj/psocconfig.o :  ./lib/GLOBAL~1.INC\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc\
+   C:\PSoC\USB_UA~3\memory.inc
+./lib/obj/psocconfigtbl.o : \
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc
+./lib/obj/usbuart.o :  ./lib/USBUART.inc ./lib/USBUAR~1.INC\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc\
+   C:\PSoC\USB_UA~3\memory.inc
+./lib/obj/usbuart_cls_cdc.o :  ./lib/USBUART.inc ./lib/USBUAR~1.INC\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc\
+   C:\PSoC\USB_UA~3\memory.inc
+./lib/obj/usbuart_descr.o :  ./lib/USBUART.inc ./lib/USBUAR~1.INC\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc
+./lib/obj/usbuart_drv.o :  ./lib/USBUART.inc ./lib/USBUAR~1.INC\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc\
+   C:\PSoC\USB_UA~3\memory.inc
+./lib/obj/usbuart_std.o :  ./lib/USBUART.inc ./lib/USBUAR~1.INC\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc
+./lib/obj/usbuartint.o :  ./lib/USBUART.inc\
+   C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc\
+   C:\PSoC\USB_UA~3\memory.inc

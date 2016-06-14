@@ -1,0 +1,1866 @@
+ 0000                   cpu LMM
+                        .module tsprintf.c
+                        .area text(rom, con, rel)
+ 0000                   .dbfile ./tsprintf.c
+ 0000                   .dbfunc e ctsprintf _ctsprintf fI
+ 0000           ;         result -> X+2
+ 0000           ;            arg -> X+0
+ 0000           ;            fmt -> X-7
+ 0000           ;           buff -> X-5
+ 0000           _ctsprintf::
+ 0000                   .dbline -1
+ 0000 10                push X
+ 0001 4F                mov X,SP
+ 0002 3804              add SP,4
+ 0004                   .dbline 48
+ 0004           ; /*
+ 0004           ;   Tiny sprintf module
+ 0004           ;    for Embedded microcontrollers
+ 0004           ;    Copyright(C) 2005 Yasuhiro ISHII
+ 0004           ;    
+ 0004           ;    File Version : 1.3
+ 0004           ;    Copyright(C) 2005-2007 Yasuhiro ISHII
+ 0004           ; 
+ 0004           ;    【バージョンアップ履歴】
+ 0004           ;    0.1 : とりあえずなんか動いた版
+ 0004           ;    0.2 : decimalの0表示対応   20050313
+ 0004           ;    0.3 : hexa decimalの0表示対応 20050313
+ 0004           ;    0.4 : ソース中の変なコード(^M)を削除した 20050503
+ 0004           ;    0.5 : tsprintf関数の変数 sizeを初期化するようにした 20050503
+ 0004           ;    0.6 : %dの負数対応,%xのunsigned処理化 20050522
+ 0004           ;    0.7 : %d,%xの桁数指定(%[n]d)/0補完指定(%0[n]d)対応 20050522
+ 0004           ;    0.8 : va_listで渡すvtsprintfを作成し、vsprintfをvtsprintfの親関数にした 20050522
+ 0004           ;    0.9 : hexで、値が0の時に桁が1になってしまうバグ修正 20050526
+ 0004           ;    1.0 : decで、値が0の時に桁が1になってしまうバグ修正 20050629
+ 0004           ;    1.1 : ハーバード・アーキテクチャ対応する為const版として定義 20061224
+ 0004           ;    1.2 : 確保していないRAMを壊すバグを修正(10進、16進表示処理)
+ 0004           ;    1.3 : PSoC専用に書き直し
+ 0004           ; 
+ 0004           ;    printfの書式設定を簡易的なものにして実装してあるので使用時には
+ 0004           ;    説明書を確認して下さい。
+ 0004           ; 
+ 0004           ; */
+ 0004           ; #include "common.h"
+ 0004           ; #include "./tsprintf.h"
+ 0004           ; #include "PSoCAPI.h"    // PSoC API definitions for all User Modules
+ 0004           ; 
+ 0004           ; int ctsprintf(char* ,const char* ,...);
+ 0004           ; int cvtsprintf(char* buff,const char* fmt,va_list arg);
+ 0004           ; 
+ 0004           ; static int tsprintf_string(char* ,char* );
+ 0004           ; static int tsprintf_cstring(const char* str,char* buff);
+ 0004           ; static int tsprintf_char(int ,char* );
+ 0004           ; static int tsprintf_decimal(signed long,char* ,int ,int );
+ 0004           ; static int tsprintf_hexadecimal(unsigned long ,char* ,int ,int ,int );
+ 0004           ; 
+ 0004           ; /** Tiny sprintf(const書式指定文字列)関数
+ 0004           ;  * @param buff 生成した文字列を格納する為のバッファへのポインタ
+ 0004           ;  * @param fmt 書式指定文字列
+ 0004           ;  * @param [argument]... 省略可能な引数
+ 0004           ;  * @return 生成文字の文字数
+ 0004           ;  * @note fmtに指定する文字列はROM内に確保したものを指定してください
+ 0004           ;  */
+ 0004           ; int ctsprintf(char* buff,const char* fmt, ...){
+ 0004                   .dbline 52
+ 0004           ;       va_list arg;
+ 0004           ;       int result;
+ 0004           ; 
+ 0004           ;       va_start(arg, fmt);
+ 0004 62D000            mov REG[0xd0],>__r0
+ 0007 5A00              mov [__r1],X
+ 0009 160007            sub [__r1],7
+ 000C 5100              mov A,[__r1]
+ 000E 5401              mov [X+1],A
+ 0010 560003            mov [X+0],3
+ 0013                   .dbline 54
+ 0013           ; 
+ 0013           ;       result = cvtsprintf(buff,fmt,arg);
+ 0013 5200              mov A,[X+0]
+ 0015 08                push A
+ 0016 5201              mov A,[X+1]
+ 0018 08                push A
+ 0019 52F9              mov A,[X-7]
+ 001B 08                push A
+ 001C 52FA              mov A,[X-6]
+ 001E 08                push A
+ 001F 52FB              mov A,[X-5]
+ 0021 08                push A
+ 0022 52FC              mov A,[X-4]
+ 0024 08                push A
+ 0025 9019              xcall _cvtsprintf
+ 0027 38FA              add SP,-6
+ 0029 62D000            mov REG[0xd0],>__r0
+ 002C 5100              mov A,[__r1]
+ 002E 5403              mov [X+3],A
+ 0030 5100              mov A,[__r0]
+ 0032 5402              mov [X+2],A
+ 0034                   .dbline 56
+ 0034           ;       
+ 0034           ;       va_end(arg);
+ 0034                   .dbline 58
+ 0034           ; 
+ 0034           ;       return(result);
+ 0034 5203              mov A,[X+3]
+ 0036 5300              mov [__r1],A
+ 0038 5202              mov A,[X+2]
+ 003A 5300              mov [__r0],A
+ 003C                   .dbline -2
+ 003C           L1:
+ 003C 38FC              add SP,-4
+ 003E 20                pop X
+ 003F                   .dbline 0 ; func end
+ 003F 7F                ret
+ 0040                   .dbsym l result 2 I
+ 0040                   .dbsym l arg 0 pc
+ 0040                   .dbsym l fmt -7 pc
+ 0040                   .dbsym l buff -5 pc
+ 0040                   .dbend
+ 0040                   .dbfunc e cvtsprintf _cvtsprintf fI
+ 0040           ; prev_sizeofarg -> X+8
+ 0040           ;          width -> X+6
+ 0040           ;       zeroflag -> X+4
+ 0040           ;            len -> X+2
+ 0040           ;           size -> X+0
+ 0040           ;            arg -> X-9
+ 0040           ;            fmt -> X-7
+ 0040           ;           buff -> X-5
+ 0040           _cvtsprintf::
+ 0040                   .dbline -1
+ 0040 10                push X
+ 0041 4F                mov X,SP
+ 0042 380C              add SP,12
+ 0044                   .dbline 68
+ 0044           ; }
+ 0044           ; 
+ 0044           ; /** Tiny vsprintf(const書式指定文字列)関数
+ 0044           ;  * @param buff 生成した文字列を格納する為のバッファへのポインタ
+ 0044           ;  * @param fmt 書式指定文字列
+ 0044           ;  * @param arg 引数
+ 0044           ;  * @return 生成文字の文字数
+ 0044           ;  * @note fmtに指定する文字列はROM内に確保したものを指定してください
+ 0044           ;  */
+ 0044           ; int cvtsprintf(char* buff,const char* fmt,va_list arg){
+ 0044                   .dbline 74
+ 0044           ;       int len;
+ 0044           ;       int size;
+ 0044           ;       int zeroflag,width;
+ 0044           ;       int prev_sizeofarg;
+ 0044           ; 
+ 0044           ;       prev_sizeofarg = 0;
+ 0044 560900            mov [X+9],0
+ 0047 560800            mov [X+8],0
+ 004A                   .dbline 76
+ 004A           ; 
+ 004A           ;       size = 0;
+ 004A 560100            mov [X+1],0
+ 004D 560000            mov [X+0],0
+ 0050                   .dbline 77
+ 0050           ;       len = 0;
+ 0050 560300            mov [X+3],0
+ 0053 560200            mov [X+2],0
+ 0056 8372              xjmp L4
+ 0058           L3:
+ 0058                   .dbline 79
+ 0058           ; 
+ 0058           ;       while(*fmt){
+ 0058                   .dbline 80
+ 0058           ;               if(*fmt=='%'){          /* % に関する処理 */
+ 0058 62D000            mov REG[0xd0],>__r0
+ 005B 52FA              mov A,[X-6]
+ 005D 5300              mov [__r1],A
+ 005F 52F9              mov A,[X-7]
+ 0061 10                push X
+ 0062 5800              mov X,[__r1]
+ 0064 28                romx
+ 0065 20                pop X
+ 0066 3925              cmp A,37
+ 0068 B31F              jnz L6
+ 006A                   .dbline 80
+ 006A                   .dbline 81
+ 006A           ;                       zeroflag = width = 0;
+ 006A 560700            mov [X+7],0
+ 006D 560600            mov [X+6],0
+ 0070 560500            mov [X+5],0
+ 0073 560400            mov [X+4],0
+ 0076                   .dbline 82
+ 0076           ;                       fmt++;
+ 0076 77FA              inc [X-6]
+ 0078 0FF900            adc [X-7],0
+ 007B                   .dbline 84
+ 007B           ; 
+ 007B           ;                       if (*fmt == '0'){
+ 007B 52FA              mov A,[X-6]
+ 007D 5300              mov [__r1],A
+ 007F 52F9              mov A,[X-7]
+ 0081 10                push X
+ 0082 5800              mov X,[__r1]
+ 0084 28                romx
+ 0085 20                pop X
+ 0086 3930              cmp A,48
+ 0088 B00C              jnz L8
+ 008A                   .dbline 84
+ 008A                   .dbline 85
+ 008A           ;                               fmt++;
+ 008A 77FA              inc [X-6]
+ 008C 0FF900            adc [X-7],0
+ 008F                   .dbline 86
+ 008F           ;                               zeroflag = 1;
+ 008F 560501            mov [X+5],1
+ 0092 560400            mov [X+4],0
+ 0095                   .dbline 87
+ 0095           ;                       }
+ 0095           L8:
+ 0095                   .dbline 88
+ 0095           ;                       if ((*fmt >= '0') && (*fmt <= '9')){
+ 0095 62D000            mov REG[0xd0],>__r0
+ 0098 52FA              mov A,[X-6]
+ 009A 5300              mov [__r1],A
+ 009C 52F9              mov A,[X-7]
+ 009E 10                push X
+ 009F 5800              mov X,[__r1]
+ 00A1 28                romx
+ 00A2 20                pop X
+ 00A3 5300              mov [__r1],A
+ 00A5 550000            mov [__r0],0
+ 00A8 1130              sub A,48
+ 00AA 5000              mov A,0
+ 00AC 3180              xor A,-128
+ 00AE 1980              sbb A,(0 ^ 0x80)
+ 00B0 C03C              jc L10
+ 00B2           X1:
+ 00B2 62D000            mov REG[0xd0],>__r0
+ 00B5 5039              mov A,57
+ 00B7 1200              sub A,[__r1]
+ 00B9 5100              mov A,[__r0]
+ 00BB 3180              xor A,-128
+ 00BD 5300              mov [__rX],A
+ 00BF 5080              mov A,(0 ^ 0x80)
+ 00C1 1A00              sbb A,[__rX]
+ 00C3 C029              jc L10
+ 00C5           X2:
+ 00C5                   .dbline 88
+ 00C5                   .dbline 89
+ 00C5           ;                               width = *(fmt++) - '0';
+ 00C5 62D000            mov REG[0xd0],>__r0
+ 00C8 52FA              mov A,[X-6]
+ 00CA 5300              mov [__r1],A
+ 00CC 52F9              mov A,[X-7]
+ 00CE 5300              mov [__r0],A
+ 00D0 5100              mov A,[__r1]
+ 00D2 0101              add A,1
+ 00D4 54FA              mov [X-6],A
+ 00D6 5100              mov A,[__r0]
+ 00D8 0900              adc A,0
+ 00DA 54F9              mov [X-7],A
+ 00DC 5100              mov A,[__r0]
+ 00DE 10                push X
+ 00DF 5800              mov X,[__r1]
+ 00E1 28                romx
+ 00E2 20                pop X
+ 00E3 1130              sub A,48
+ 00E5 5407              mov [X+7],A
+ 00E7 5000              mov A,0
+ 00E9 1900              sbb A,0
+ 00EB 5406              mov [X+6],A
+ 00ED                   .dbline 90
+ 00ED           ;                       }
+ 00ED           L10:
+ 00ED                   .dbline 92
+ 00ED           ; 
+ 00ED           ;                       switch(*fmt){
+ 00ED 62D000            mov REG[0xd0],>__r0
+ 00F0 52FA              mov A,[X-6]
+ 00F2 5300              mov [__r1],A
+ 00F4 52F9              mov A,[X-7]
+ 00F6 10                push X
+ 00F7 5800              mov X,[__r1]
+ 00F9 28                romx
+ 00FA 20                pop X
+ 00FB 540B              mov [X+11],A
+ 00FD 560A00            mov [X+10],0
+ 0100 3D0A00            cmp [X+10],0
+ 0103 B006              jnz X3
+ 0105 3D0B63            cmp [X+11],99
+ 0108 A179              jz L18
+ 010A           X3:
+ 010A 520B              mov A,[X+11]
+ 010C 1164              sub A,100
+ 010E 62D000            mov REG[0xd0],>__r0
+ 0111 5300              mov [__rY],A
+ 0113 520A              mov A,[X+10]
+ 0115 3180              xor A,-128
+ 0117 1980              sbb A,(0 ^ 0x80)
+ 0119 2A00              or A,[__rY]
+ 011B A045              jz L15
+ 011D D022              jnc L22
+ 011F           X4:
+ 011F           L21:
+ 011F 520B              mov A,[X+11]
+ 0121 1153              sub A,83
+ 0123 62D000            mov REG[0xd0],>__r0
+ 0126 5300              mov [__rY],A
+ 0128 520A              mov A,[X+10]
+ 012A 3180              xor A,-128
+ 012C 1980              sbb A,(0 ^ 0x80)
+ 012E C20D              jc L12
+ 0130 2A00              or A,[__rY]
+ 0132 A1CB              jz L20
+ 0134           X5:
+ 0134           L23:
+ 0134 3D0A00            cmp [X+10],0
+ 0137 B006              jnz X6
+ 0139 3D0B58            cmp [X+11],88
+ 013C A0EA              jz L17
+ 013E           X6:
+ 013E 81FD              xjmp L12
+ 0140           L22:
+ 0140 520B              mov A,[X+11]
+ 0142 1173              sub A,115
+ 0144 62D000            mov REG[0xd0],>__r0
+ 0147 5300              mov [__rY],A
+ 0149 520A              mov A,[X+10]
+ 014B 3180              xor A,-128
+ 014D 1980              sbb A,(0 ^ 0x80)
+ 014F C1EC              jc L12
+ 0151 2A00              or A,[__rY]
+ 0153 A16C              jz L19
+ 0155           X7:
+ 0155           L24:
+ 0155 3D0A00            cmp [X+10],0
+ 0158 B006              jnz X8
+ 015A 3D0B78            cmp [X+11],120
+ 015D A070              jz L16
+ 015F           X8:
+ 015F 81DC              xjmp L12
+ 0161           X0:
+ 0161                   .dbline 92
+ 0161           L15:
+ 0161                   .dbline 94
+ 0161           ;                       case 'd':               /* 16ビット 10進数 */
+ 0161           ;                               size = tsprintf_decimal(va_arg(arg,H),buff,zeroflag,width);
+ 0161 5206              mov A,[X+6]
+ 0163 08                push A
+ 0164 5207              mov A,[X+7]
+ 0166 08                push A
+ 0167 5204              mov A,[X+4]
+ 0169 08                push A
+ 016A 5205              mov A,[X+5]
+ 016C 08                push A
+ 016D 52FB              mov A,[X-5]
+ 016F 08                push A
+ 0170 52FC              mov A,[X-4]
+ 0172 08                push A
+ 0173 62D000            mov REG[0xd0],>__r0
+ 0176 52F8              mov A,[X-8]
+ 0178 01FE              add A,-2
+ 017A 5300              mov [__r1],A
+ 017C 52F7              mov A,[X-9]
+ 017E 09FF              adc A,-1
+ 0180 5300              mov [__r0],A
+ 0182 5100              mov A,[__r1]
+ 0184 54F8              mov [X-8],A
+ 0186 5100              mov A,[__r0]
+ 0188 54F7              mov [X-9],A
+ 018A 60D4              mov REG[0xd4],A
+ 018C 3E00              mvi A,[__r1]
+ 018E 5300              mov [__r0],A
+ 0190 3E00              mvi A,[__r1]
+ 0192 5300              mov [__r3],A
+ 0194 5100              mov A,[__r0]
+ 0196 5300              mov [__r2],A
+ 0198 470080            tst [__r2],-128
+ 019B A009              jz X9
+ 019D 5500FF            mov [__r1],-1
+ 01A0 5500FF            mov [__r0],-1
+ 01A3 800A              jmp X10
+ 01A5           X9:
+ 01A5 62D000            mov REG[0xd0],>__r0
+ 01A8 550000            mov [__r1],0
+ 01AB 550000            mov [__r0],0
+ 01AE           X10:
+ 01AE 62D000            mov REG[0xd0],>__r0
+ 01B1 5100              mov A,[__r0]
+ 01B3 08                push A
+ 01B4 5100              mov A,[__r1]
+ 01B6 08                push A
+ 01B7 5100              mov A,[__r2]
+ 01B9 08                push A
+ 01BA 5100              mov A,[__r3]
+ 01BC 08                push A
+ 01BD 9234              xcall _tsprintf_decimal
+ 01BF 38F6              add SP,-10
+ 01C1 62D000            mov REG[0xd0],>__r0
+ 01C4 5100              mov A,[__r1]
+ 01C6 5401              mov [X+1],A
+ 01C8 5100              mov A,[__r0]
+ 01CA 5400              mov [X+0],A
+ 01CC                   .dbline 95
+ 01CC           ;                               break;
+ 01CC 81A0              xjmp L13
+ 01CE           L16:
+ 01CE                   .dbline 98
+ 01CE           ;                       case 'x':               /* 16ビット 16進数 0-f */
+ 01CE           ; //                            size = tsprintf_hexadecimal(va_arg(arg,unsigned long),buff,0,zeroflag,width);
+ 01CE           ;                               size = tsprintf_hexadecimal(va_arg(arg,UH),buff,0,zeroflag,width);
+ 01CE 5206              mov A,[X+6]
+ 01D0 08                push A
+ 01D1 5207              mov A,[X+7]
+ 01D3 08                push A
+ 01D4 5204              mov A,[X+4]
+ 01D6 08                push A
+ 01D7 5205              mov A,[X+5]
+ 01D9 08                push A
+ 01DA 5000              mov A,0
+ 01DC 08                push A
+ 01DD 08                push A
+ 01DE 52FB              mov A,[X-5]
+ 01E0 08                push A
+ 01E1 52FC              mov A,[X-4]
+ 01E3 08                push A
+ 01E4 62D000            mov REG[0xd0],>__r0
+ 01E7 52F8              mov A,[X-8]
+ 01E9 01FE              add A,-2
+ 01EB 5300              mov [__r1],A
+ 01ED 52F7              mov A,[X-9]
+ 01EF 09FF              adc A,-1
+ 01F1 5300              mov [__r0],A
+ 01F3 5100              mov A,[__r1]
+ 01F5 54F8              mov [X-8],A
+ 01F7 5100              mov A,[__r0]
+ 01F9 54F7              mov [X-9],A
+ 01FB 60D4              mov REG[0xd4],A
+ 01FD 3E00              mvi A,[__r1]
+ 01FF 5300              mov [__r0],A
+ 0201 3E00              mvi A,[__r1]
+ 0203 160002            sub [__r1],2
+ 0206 5300              mov [__r3],A
+ 0208 5100              mov A,[__r0]
+ 020A 5300              mov [__r2],A
+ 020C 5000              mov A,0
+ 020E 08                push A
+ 020F 08                push A
+ 0210 5100              mov A,[__r2]
+ 0212 08                push A
+ 0213 5100              mov A,[__r3]
+ 0215 08                push A
+ 0216 945F              xcall _tsprintf_hexadecimal
+ 0218 38F4              add SP,-12
+ 021A 62D000            mov REG[0xd0],>__r0
+ 021D 5100              mov A,[__r1]
+ 021F 5401              mov [X+1],A
+ 0221 5100              mov A,[__r0]
+ 0223 5400              mov [X+0],A
+ 0225                   .dbline 99
+ 0225           ;                               break;
+ 0225 8147              xjmp L13
+ 0227           L17:
+ 0227                   .dbline 102
+ 0227           ;                       case 'X':               /* 16ビット 16進数 0-F */
+ 0227           ; //                            size = tsprintf_hexadecimal(va_arg(arg,unsigned long),buff,1,zeroflag,width);
+ 0227           ;                               size = tsprintf_hexadecimal(va_arg(arg,UH),buff,1,zeroflag,width);
+ 0227 5206              mov A,[X+6]
+ 0229 08                push A
+ 022A 5207              mov A,[X+7]
+ 022C 08                push A
+ 022D 5204              mov A,[X+4]
+ 022F 08                push A
+ 0230 5205              mov A,[X+5]
+ 0232 08                push A
+ 0233 5000              mov A,0
+ 0235 08                push A
+ 0236 5001              mov A,1
+ 0238 08                push A
+ 0239 52FB              mov A,[X-5]
+ 023B 08                push A
+ 023C 52FC              mov A,[X-4]
+ 023E 08                push A
+ 023F 62D000            mov REG[0xd0],>__r0
+ 0242 52F8              mov A,[X-8]
+ 0244 01FE              add A,-2
+ 0246 5300              mov [__r1],A
+ 0248 52F7              mov A,[X-9]
+ 024A 09FF              adc A,-1
+ 024C 5300              mov [__r0],A
+ 024E 5100              mov A,[__r1]
+ 0250 54F8              mov [X-8],A
+ 0252 5100              mov A,[__r0]
+ 0254 54F7              mov [X-9],A
+ 0256 60D4              mov REG[0xd4],A
+ 0258 3E00              mvi A,[__r1]
+ 025A 5300              mov [__r0],A
+ 025C 3E00              mvi A,[__r1]
+ 025E 160002            sub [__r1],2
+ 0261 5300              mov [__r3],A
+ 0263 5100              mov A,[__r0]
+ 0265 5300              mov [__r2],A
+ 0267 5000              mov A,0
+ 0269 08                push A
+ 026A 08                push A
+ 026B 5100              mov A,[__r2]
+ 026D 08                push A
+ 026E 5100              mov A,[__r3]
+ 0270 08                push A
+ 0271 9404              xcall _tsprintf_hexadecimal
+ 0273 38F4              add SP,-12
+ 0275 62D000            mov REG[0xd0],>__r0
+ 0278 5100              mov A,[__r1]
+ 027A 5401              mov [X+1],A
+ 027C 5100              mov A,[__r0]
+ 027E 5400              mov [X+0],A
+ 0280                   .dbline 103
+ 0280           ;                               break;
+ 0280 80EC              xjmp L13
+ 0282           L18:
+ 0282                   .dbline 105
+ 0282           ;                       case 'c':               /* キャラクター */
+ 0282           ;                               size = tsprintf_char(va_arg(arg,H),buff);
+ 0282 52FB              mov A,[X-5]
+ 0284 08                push A
+ 0285 52FC              mov A,[X-4]
+ 0287 08                push A
+ 0288 62D000            mov REG[0xd0],>__r0
+ 028B 52F8              mov A,[X-8]
+ 028D 01FE              add A,-2
+ 028F 5300              mov [__r1],A
+ 0291 52F7              mov A,[X-9]
+ 0293 09FF              adc A,-1
+ 0295 5300              mov [__r0],A
+ 0297 5100              mov A,[__r1]
+ 0299 54F8              mov [X-8],A
+ 029B 5100              mov A,[__r0]
+ 029D 54F7              mov [X-9],A
+ 029F 60D4              mov REG[0xd4],A
+ 02A1 3E00              mvi A,[__r1]
+ 02A3 5300              mov [__r0],A
+ 02A5 3E00              mvi A,[__r1]
+ 02A7 5300              mov [__r1],A
+ 02A9 5100              mov A,[__r0]
+ 02AB 08                push A
+ 02AC 5100              mov A,[__r1]
+ 02AE 08                push A
+ 02AF 95BD              xcall _tsprintf_char
+ 02B1 38FC              add SP,-4
+ 02B3 62D000            mov REG[0xd0],>__r0
+ 02B6 5100              mov A,[__r1]
+ 02B8 5401              mov [X+1],A
+ 02BA 5100              mov A,[__r0]
+ 02BC 5400              mov [X+0],A
+ 02BE                   .dbline 106
+ 02BE           ;                               break;
+ 02BE 80AE              xjmp L13
+ 02C0           L19:
+ 02C0                   .dbline 108
+ 02C0           ;                       case 's':               /* ASCIIZ文字列 */
+ 02C0           ;                               size = tsprintf_string(va_arg(arg,char*),buff);
+ 02C0 52FB              mov A,[X-5]
+ 02C2 08                push A
+ 02C3 52FC              mov A,[X-4]
+ 02C5 08                push A
+ 02C6 62D000            mov REG[0xd0],>__r0
+ 02C9 52F8              mov A,[X-8]
+ 02CB 01FE              add A,-2
+ 02CD 5300              mov [__r1],A
+ 02CF 52F7              mov A,[X-9]
+ 02D1 09FF              adc A,-1
+ 02D3 5300              mov [__r0],A
+ 02D5 5100              mov A,[__r1]
+ 02D7 54F8              mov [X-8],A
+ 02D9 5100              mov A,[__r0]
+ 02DB 54F7              mov [X-9],A
+ 02DD 60D4              mov REG[0xd4],A
+ 02DF 3E00              mvi A,[__r1]
+ 02E1 5300              mov [__r0],A
+ 02E3 3E00              mvi A,[__r1]
+ 02E5 5300              mov [__r1],A
+ 02E7 5100              mov A,[__r0]
+ 02E9 08                push A
+ 02EA 5100              mov A,[__r1]
+ 02EC 08                push A
+ 02ED 959C              xcall _tsprintf_string
+ 02EF 38FC              add SP,-4
+ 02F1 62D000            mov REG[0xd0],>__r0
+ 02F4 5100              mov A,[__r1]
+ 02F6 5401              mov [X+1],A
+ 02F8 5100              mov A,[__r0]
+ 02FA 5400              mov [X+0],A
+ 02FC                   .dbline 109
+ 02FC           ;                               break;
+ 02FC 8070              xjmp L13
+ 02FE           L20:
+ 02FE                   .dbline 111
+ 02FE           ;                       case 'S':               /* const ASCIIZ文字列 */
+ 02FE           ;                               size = tsprintf_cstring(va_arg(arg,const char*),buff);
+ 02FE 52FB              mov A,[X-5]
+ 0300 08                push A
+ 0301 52FC              mov A,[X-4]
+ 0303 08                push A
+ 0304 62D000            mov REG[0xd0],>__r0
+ 0307 52F8              mov A,[X-8]
+ 0309 01FE              add A,-2
+ 030B 5300              mov [__r1],A
+ 030D 52F7              mov A,[X-9]
+ 030F 09FF              adc A,-1
+ 0311 5300              mov [__r0],A
+ 0313 5100              mov A,[__r1]
+ 0315 54F8              mov [X-8],A
+ 0317 5100              mov A,[__r0]
+ 0319 54F7              mov [X-9],A
+ 031B 60D4              mov REG[0xd4],A
+ 031D 3E00              mvi A,[__r1]
+ 031F 5300              mov [__r0],A
+ 0321 3E00              mvi A,[__r1]
+ 0323 5300              mov [__r1],A
+ 0325 5100              mov A,[__r0]
+ 0327 08                push A
+ 0328 5100              mov A,[__r1]
+ 032A 08                push A
+ 032B 95BC              xcall _tsprintf_cstring
+ 032D 38FC              add SP,-4
+ 032F 62D000            mov REG[0xd0],>__r0
+ 0332 5100              mov A,[__r1]
+ 0334 5401              mov [X+1],A
+ 0336 5100              mov A,[__r0]
+ 0338 5400              mov [X+0],A
+ 033A                   .dbline 112
+ 033A           ;                               break;
+ 033A 8032              xjmp L13
+ 033C           L12:
+ 033C                   .dbline 115
+ 033C           ;                       default:                /* コントロールコード以外の文字 */
+ 033C           ;                               /* %%(%に対応)はここで対応される */
+ 033C           ;                               len++;
+ 033C 7703              inc [X+3]
+ 033E 0F0200            adc [X+2],0
+ 0341                   .dbline 116
+ 0341           ;                               *(buff++) = *fmt;
+ 0341 62D000            mov REG[0xd0],>__r0
+ 0344 52FC              mov A,[X-4]
+ 0346 5300              mov [__r1],A
+ 0348 52FB              mov A,[X-5]
+ 034A 5300              mov [__r0],A
+ 034C 5100              mov A,[__r1]
+ 034E 0101              add A,1
+ 0350 54FC              mov [X-4],A
+ 0352 5100              mov A,[__r0]
+ 0354 0900              adc A,0
+ 0356 54FB              mov [X-5],A
+ 0358 52FA              mov A,[X-6]
+ 035A 5300              mov [__r3],A
+ 035C 52F9              mov A,[X-7]
+ 035E 10                push X
+ 035F 5800              mov X,[__r3]
+ 0361 28                romx
+ 0362 20                pop X
+ 0363 5300              mov [__r2],A
+ 0365 5100              mov A,[__r0]
+ 0367 60D5              mov REG[0xd5],A
+ 0369 5100              mov A,[__r2]
+ 036B 3F00              mvi [__r1],A
+ 036D                   .dbline 117
+ 036D           ;                               break;
+ 036D           L13:
+ 036D                   .dbline 119
+ 036D           ;                       }
+ 036D           ;                       len += size;
+ 036D 5201              mov A,[X+1]
+ 036F 0503              add [X+3],A
+ 0371 5200              mov A,[X+0]
+ 0373 0D02              adc [X+2],A
+ 0375                   .dbline 120
+ 0375           ;                       buff += size;
+ 0375 5201              mov A,[X+1]
+ 0377 03FC              add A,[X-4]
+ 0379 54FC              mov [X-4],A
+ 037B 5200              mov A,[X+0]
+ 037D 0BFB              adc A,[X-5]
+ 037F 54FB              mov [X-5],A
+ 0381                   .dbline 121
+ 0381           ;                       fmt++;
+ 0381 77FA              inc [X-6]
+ 0383 0FF900            adc [X-7],0
+ 0386                   .dbline 122
+ 0386 8042              xjmp L7
+ 0388           L6:
+ 0388                   .dbline 122
+ 0388           ;               } else {
+ 0388                   .dbline 123
+ 0388           ;                       *(buff++) = *(fmt++);
+ 0388 62D000            mov REG[0xd0],>__r0
+ 038B 52FC              mov A,[X-4]
+ 038D 5300              mov [__r1],A
+ 038F 52FB              mov A,[X-5]
+ 0391 5300              mov [__r0],A
+ 0393 5100              mov A,[__r1]
+ 0395 0101              add A,1
+ 0397 54FC              mov [X-4],A
+ 0399 5100              mov A,[__r0]
+ 039B 0900              adc A,0
+ 039D 54FB              mov [X-5],A
+ 039F 52FA              mov A,[X-6]
+ 03A1 5300              mov [__r3],A
+ 03A3 52F9              mov A,[X-7]
+ 03A5 5300              mov [__r2],A
+ 03A7 5100              mov A,[__r3]
+ 03A9 0101              add A,1
+ 03AB 54FA              mov [X-6],A
+ 03AD 5100              mov A,[__r2]
+ 03AF 0900              adc A,0
+ 03B1 54F9              mov [X-7],A
+ 03B3 5100              mov A,[__r2]
+ 03B5 10                push X
+ 03B6 5800              mov X,[__r3]
+ 03B8 28                romx
+ 03B9 20                pop X
+ 03BA 5300              mov [__r2],A
+ 03BC 5100              mov A,[__r0]
+ 03BE 60D5              mov REG[0xd5],A
+ 03C0 5100              mov A,[__r2]
+ 03C2 3F00              mvi [__r1],A
+ 03C4                   .dbline 124
+ 03C4           ;                       len++;
+ 03C4 7703              inc [X+3]
+ 03C6 0F0200            adc [X+2],0
+ 03C9                   .dbline 125
+ 03C9           ;               }
+ 03C9           L7:
+ 03C9                   .dbline 126
+ 03C9           L4:
+ 03C9                   .dbline 79
+ 03C9 62D000            mov REG[0xd0],>__r0
+ 03CC 52FA              mov A,[X-6]
+ 03CE 5300              mov [__r1],A
+ 03D0 52F9              mov A,[X-7]
+ 03D2 10                push X
+ 03D3 5800              mov X,[__r1]
+ 03D5 28                romx
+ 03D6 20                pop X
+ 03D7 3900              cmp A,0
+ 03D9 BC7E              jnz L3
+ 03DB                   .dbline 128
+ 03DB           ;       }
+ 03DB           ; 
+ 03DB           ;       *buff = '\0';           /* 終端を入れる */
+ 03DB 52FC              mov A,[X-4]
+ 03DD 5300              mov [__r1],A
+ 03DF 52FB              mov A,[X-5]
+ 03E1 60D5              mov REG[0xd5],A
+ 03E3 5000              mov A,0
+ 03E5 3F00              mvi [__r1],A
+ 03E7                   .dbline 130
+ 03E7           ; 
+ 03E7           ;       va_end(arg);
+ 03E7                   .dbline 131
+ 03E7           ;       return (len);
+ 03E7 5203              mov A,[X+3]
+ 03E9 5300              mov [__r1],A
+ 03EB 5202              mov A,[X+2]
+ 03ED 5300              mov [__r0],A
+ 03EF                   .dbline -2
+ 03EF           L2:
+ 03EF 38F4              add SP,-12
+ 03F1 20                pop X
+ 03F2                   .dbline 0 ; func end
+ 03F2 7F                ret
+ 03F3                   .dbsym l prev_sizeofarg 8 I
+ 03F3                   .dbsym l width 6 I
+ 03F3                   .dbsym l zeroflag 4 I
+ 03F3                   .dbsym l len 2 I
+ 03F3                   .dbsym l size 0 I
+ 03F3                   .dbsym l arg -9 pc
+ 03F3                   .dbsym l fmt -7 pc
+ 03F3                   .dbsym l buff -5 pc
+ 03F3                   .dbend
+ 03F3                   .dbfunc s tsprintf_decimal _tsprintf_decimal fI
+ 03F3           ;            tmp -> X+8
+ 03F3           ;          minus -> X+6
+ 03F3           ;              i -> X+4
+ 03F3           ;           ptmp -> X+2
+ 03F3           ;            len -> X+0
+ 03F3           ;             wd -> X-13
+ 03F3           ;             zf -> X-11
+ 03F3           ;           buff -> X-9
+ 03F3           ;            val -> X-7
+ 03F3           _tsprintf_decimal:
+ 03F3                   .dbline -1
+ 03F3 10                push X
+ 03F4 4F                mov X,SP
+ 03F5 3812              add SP,18
+ 03F7                   .dbline 141
+ 03F7           ; }
+ 03F7           ; 
+ 03F7           ; /** 数値 => 10進文字列変換
+ 03F7           ;  * @param val 変換したい文字列データ
+ 03F7           ;  * @param buff 変換した文字列データを格納するバッファへのポインタ
+ 03F7           ;  * @param zf 1:文字列データ先頭部分に0を埋め込む
+ 03F7           ;  * @param wd 文字列する場合の桁数指定(0～9)
+ 03F7           ;  * @return 生成文字の文字数
+ 03F7           ;  */
+ 03F7           ; static int tsprintf_decimal(signed long val,char* buff,int zf,int wd){
+ 03F7                   .dbline 144
+ 03F7           ;       int i;
+ 03F7           ;       char tmp[10];
+ 03F7           ;       char* ptmp = tmp + 9;
+ 03F7 62D000            mov REG[0xd0],>__r0
+ 03FA 5A00              mov [__r1],X
+ 03FC 060011            add [__r1],17
+ 03FF 5100              mov A,[__r1]
+ 0401 5403              mov [X+3],A
+ 0403 560203            mov [X+2],3
+ 0406                   .dbline 145
+ 0406           ;       int len = 0;
+ 0406 560100            mov [X+1],0
+ 0409 560000            mov [X+0],0
+ 040C                   .dbline 146
+ 040C           ;       int minus = 0;
+ 040C 560700            mov [X+7],0
+ 040F 560600            mov [X+6],0
+ 0412                   .dbline 148
+ 0412           ;                               
+ 0412           ;       if (!val){              /* 指定値が0の場合 */
+ 0412 3DF900            cmp [X-7],0
+ 0415 B036              jnz L27
+ 0417 3DFA00            cmp [X-6],0
+ 041A B031              jnz L27
+ 041C 3DFB00            cmp [X-5],0
+ 041F B02C              jnz L27
+ 0421 3DFC00            cmp [X-4],0
+ 0424 B027              jnz L27
+ 0426           X11:
+ 0426                   .dbline 148
+ 0426                   .dbline 149
+ 0426           ;               *(ptmp--) = '0';
+ 0426 62D000            mov REG[0xd0],>__r0
+ 0429 5203              mov A,[X+3]
+ 042B 5300              mov [__r1],A
+ 042D 5202              mov A,[X+2]
+ 042F 5300              mov [__r0],A
+ 0431 5100              mov A,[__r1]
+ 0433 01FF              add A,-1
+ 0435 5403              mov [X+3],A
+ 0437 5100              mov A,[__r0]
+ 0439 09FF              adc A,-1
+ 043B 5402              mov [X+2],A
+ 043D 5100              mov A,[__r0]
+ 043F 60D5              mov REG[0xd5],A
+ 0441 5030              mov A,48
+ 0443 3F00              mvi [__r1],A
+ 0445                   .dbline 150
+ 0445           ;               len++;
+ 0445 7701              inc [X+1]
+ 0447 0F0000            adc [X+0],0
+ 044A                   .dbline 151
+ 044A 80D3              xjmp L28
+ 044C           L27:
+ 044C                   .dbline 151
+ 044C           ;       } else {
+ 044C                   .dbline 153
+ 044C           ;               /* マイナスの値の場合には2の補数を取る */
+ 044C           ;               if (val < 0){
+ 044C 52FC              mov A,[X-4]
+ 044E 1100              sub A,0
+ 0450 52FB              mov A,[X-5]
+ 0452 1900              sbb A,0
+ 0454 52FA              mov A,[X-6]
+ 0456 1900              sbb A,0
+ 0458 52F9              mov A,[X-7]
+ 045A 3180              xor A,-128
+ 045C 1980              sbb A,(0 ^ 0x80)
+ 045E D0AB              jnc L32
+ 0460           X12:
+ 0460                   .dbline 153
+ 0460                   .dbline 154
+ 0460           ;                       val = ~val;
+ 0460 52F9              mov A,[X-7]
+ 0462 73                cpl A
+ 0463 54F9              mov [X-7],A
+ 0465 52FA              mov A,[X-6]
+ 0467 73                cpl A
+ 0468 54FA              mov [X-6],A
+ 046A 52FB              mov A,[X-5]
+ 046C 73                cpl A
+ 046D 54FB              mov [X-5],A
+ 046F 52FC              mov A,[X-4]
+ 0471 73                cpl A
+ 0472 54FC              mov [X-4],A
+ 0474                   .dbline 155
+ 0474           ;                       val++;
+ 0474 07FC01            add [X-4],1
+ 0477 0FFB00            adc [X-5],0
+ 047A 0FFA00            adc [X-6],0
+ 047D 0FF900            adc [X-7],0
+ 0480                   .dbline 156
+ 0480           ;                       minus = 1;
+ 0480 560701            mov [X+7],1
+ 0483 560600            mov [X+6],0
+ 0486                   .dbline 157
+ 0486           ;               }
+ 0486 8083              xjmp L32
+ 0488           L31:
+ 0488                   .dbline 158
+ 0488           ;               while (val){
+ 0488                   .dbline 161
+ 0488           ; 
+ 0488           ;                       /* バッファアンダーフロー対策 */
+ 0488           ;                       if (len >= 8){
+ 0488 5201              mov A,[X+1]
+ 048A 1108              sub A,8
+ 048C 5200              mov A,[X+0]
+ 048E 3180              xor A,-128
+ 0490 1980              sbb A,(0 ^ 0x80)
+ 0492 C003              jc L34
+ 0494           X13:
+ 0494                   .dbline 161
+ 0494                   .dbline 162
+ 0494           ;                               break;
+ 0494 8089              xjmp L33
+ 0496           L34:
+ 0496                   .dbline 165
+ 0496 62D000            mov REG[0xd0],>__r0
+ 0499 5000              mov A,0
+ 049B 08                push A
+ 049C 08                push A
+ 049D 08                push A
+ 049E 500A              mov A,10
+ 04A0 08                push A
+ 04A1 52F9              mov A,[X-7]
+ 04A3 08                push A
+ 04A4 52FA              mov A,[X-6]
+ 04A6 08                push A
+ 04A7 52FB              mov A,[X-5]
+ 04A9 08                push A
+ 04AA 52FC              mov A,[X-4]
+ 04AC 08                push A
+ 04AD 7C0000            xcall __divmod_32X32_32
+ 04B0 38FC              add SP,-4
+ 04B2 18                pop A
+ 04B3 5300              mov [__r3],A
+ 04B5 18                pop A
+ 04B6 5300              mov [__r2],A
+ 04B8 18                pop A
+ 04B9 5300              mov [__r1],A
+ 04BB 18                pop A
+ 04BC 5300              mov [__r0],A
+ 04BE 060030            add [__r3],48
+ 04C1 0E0000            adc [__r2],0
+ 04C4 0E0000            adc [__r1],0
+ 04C7 0E0000            adc [__r0],0
+ 04CA 5100              mov A,[__r3]
+ 04CC 5300              mov [__r0],A
+ 04CE 5203              mov A,[X+3]
+ 04D0 5300              mov [__r3],A
+ 04D2 5202              mov A,[X+2]
+ 04D4 60D5              mov REG[0xd5],A
+ 04D6 5100              mov A,[__r0]
+ 04D8 3F00              mvi [__r3],A
+ 04DA                   .dbline 167
+ 04DA 5000              mov A,0
+ 04DC 08                push A
+ 04DD 08                push A
+ 04DE 08                push A
+ 04DF 500A              mov A,10
+ 04E1 08                push A
+ 04E2 52F9              mov A,[X-7]
+ 04E4 08                push A
+ 04E5 52FA              mov A,[X-6]
+ 04E7 08                push A
+ 04E8 52FB              mov A,[X-5]
+ 04EA 08                push A
+ 04EB 52FC              mov A,[X-4]
+ 04ED 08                push A
+ 04EE 7C0000            xcall __divmod_32X32_32
+ 04F1 18                pop A
+ 04F2 54FC              mov [X-4],A
+ 04F4 18                pop A
+ 04F5 54FB              mov [X-5],A
+ 04F7 18                pop A
+ 04F8 54FA              mov [X-6],A
+ 04FA 18                pop A
+ 04FB 54F9              mov [X-7],A
+ 04FD 38FC              add SP,-4
+ 04FF                   .dbline 168
+ 04FF 0703FF            add [X+3],-1
+ 0502 0F02FF            adc [X+2],-1
+ 0505                   .dbline 169
+ 0505 7701              inc [X+1]
+ 0507 0F0000            adc [X+0],0
+ 050A                   .dbline 170
+ 050A           L32:
+ 050A                   .dbline 158
+ 050A 3DF900            cmp [X-7],0
+ 050D BF7A              jnz L31
+ 050F 3DFA00            cmp [X-6],0
+ 0512 BF75              jnz L31
+ 0514 3DFB00            cmp [X-5],0
+ 0517 BF70              jnz L31
+ 0519 3DFC00            cmp [X-4],0
+ 051C BF6B              jnz L31
+ 051E           X14:
+ 051E           L33:
+ 051E                   .dbline 172
+ 051E           ;                       }
+ 051E           ;       
+ 051E           ;                       *ptmp = (val % 10) + '0';
+ 051E           ; 
+ 051E           ;                       val /= 10;
+ 051E           ;                       ptmp--;
+ 051E           ;                       len++;
+ 051E           ;               }
+ 051E           ; 
+ 051E           ;       }
+ 051E           L28:
+ 051E                   .dbline 175
+ 051E           ; 
+ 051E           ;       /* 符号、桁合わせに関する処理 */
+ 051E           ;       if (zf){
+ 051E 3DF500            cmp [X-11],0
+ 0521 B006              jnz X15
+ 0523 3DF600            cmp [X-10],0
+ 0526 A07B              jz L36
+ 0528           X15:
+ 0528                   .dbline 175
+ 0528                   .dbline 176
+ 0528           ;               if (minus){
+ 0528 3D0600            cmp [X+6],0
+ 052B B006              jnz X16
+ 052D 3D0700            cmp [X+7],0
+ 0530 A02C              jz L41
+ 0532           X16:
+ 0532                   .dbline 176
+ 0532                   .dbline 177
+ 0532           ;                       wd--;
+ 0532 7BF4              dec [X-12]
+ 0534 1FF300            sbb [X-13],0
+ 0537                   .dbline 178
+ 0537           ;               }
+ 0537 8025              xjmp L41
+ 0539           L40:
+ 0539                   .dbline 179
+ 0539                   .dbline 180
+ 0539 62D000            mov REG[0xd0],>__r0
+ 053C 5203              mov A,[X+3]
+ 053E 5300              mov [__r1],A
+ 0540 5202              mov A,[X+2]
+ 0542 5300              mov [__r0],A
+ 0544 5100              mov A,[__r1]
+ 0546 01FF              add A,-1
+ 0548 5403              mov [X+3],A
+ 054A 5100              mov A,[__r0]
+ 054C 09FF              adc A,-1
+ 054E 5402              mov [X+2],A
+ 0550 5100              mov A,[__r0]
+ 0552 60D5              mov REG[0xd5],A
+ 0554 5030              mov A,48
+ 0556 3F00              mvi [__r1],A
+ 0558                   .dbline 181
+ 0558 7701              inc [X+1]
+ 055A 0F0000            adc [X+0],0
+ 055D                   .dbline 182
+ 055D           L41:
+ 055D                   .dbline 179
+ 055D           ;               while (len < wd){
+ 055D 5201              mov A,[X+1]
+ 055F 13F4              sub A,[X-12]
+ 0561 52F3              mov A,[X-13]
+ 0563 3180              xor A,-128
+ 0565 62D000            mov REG[0xd0],>__r0
+ 0568 5300              mov [__rX],A
+ 056A 5200              mov A,[X+0]
+ 056C 3180              xor A,-128
+ 056E 1A00              sbb A,[__rX]
+ 0570 CFC8              jc L40
+ 0572           X17:
+ 0572                   .dbline 183
+ 0572           ;                       *(ptmp--) =  '0';
+ 0572           ;                       len++;
+ 0572           ;               }
+ 0572           ;               if (minus){
+ 0572 3D0600            cmp [X+6],0
+ 0575 B006              jnz X18
+ 0577 3D0700            cmp [X+7],0
+ 057A A090              jz L37
+ 057C           X18:
+ 057C                   .dbline 183
+ 057C                   .dbline 184
+ 057C           ;                       *(ptmp--) = '-';
+ 057C 62D000            mov REG[0xd0],>__r0
+ 057F 5203              mov A,[X+3]
+ 0581 5300              mov [__r1],A
+ 0583 5202              mov A,[X+2]
+ 0585 5300              mov [__r0],A
+ 0587 5100              mov A,[__r1]
+ 0589 01FF              add A,-1
+ 058B 5403              mov [X+3],A
+ 058D 5100              mov A,[__r0]
+ 058F 09FF              adc A,-1
+ 0591 5402              mov [X+2],A
+ 0593 5100              mov A,[__r0]
+ 0595 60D5              mov REG[0xd5],A
+ 0597 502D              mov A,45
+ 0599 3F00              mvi [__r1],A
+ 059B                   .dbline 185
+ 059B           ;                       len++;
+ 059B 7701              inc [X+1]
+ 059D 0F0000            adc [X+0],0
+ 05A0                   .dbline 186
+ 05A0           ;               }
+ 05A0                   .dbline 187
+ 05A0 806A              xjmp L37
+ 05A2           L36:
+ 05A2                   .dbline 187
+ 05A2           ;       } else {
+ 05A2                   .dbline 188
+ 05A2           ;               if (minus){
+ 05A2 3D0600            cmp [X+6],0
+ 05A5 B006              jnz X19
+ 05A7 3D0700            cmp [X+7],0
+ 05AA A04B              jz L48
+ 05AC           X19:
+ 05AC                   .dbline 188
+ 05AC                   .dbline 189
+ 05AC           ;                       *(ptmp--) = '-';
+ 05AC 62D000            mov REG[0xd0],>__r0
+ 05AF 5203              mov A,[X+3]
+ 05B1 5300              mov [__r1],A
+ 05B3 5202              mov A,[X+2]
+ 05B5 5300              mov [__r0],A
+ 05B7 5100              mov A,[__r1]
+ 05B9 01FF              add A,-1
+ 05BB 5403              mov [X+3],A
+ 05BD 5100              mov A,[__r0]
+ 05BF 09FF              adc A,-1
+ 05C1 5402              mov [X+2],A
+ 05C3 5100              mov A,[__r0]
+ 05C5 60D5              mov REG[0xd5],A
+ 05C7 502D              mov A,45
+ 05C9 3F00              mvi [__r1],A
+ 05CB                   .dbline 190
+ 05CB           ;                       len++;
+ 05CB 7701              inc [X+1]
+ 05CD 0F0000            adc [X+0],0
+ 05D0                   .dbline 191
+ 05D0           ;               }
+ 05D0 8025              xjmp L48
+ 05D2           L47:
+ 05D2                   .dbline 192
+ 05D2                   .dbline 193
+ 05D2 62D000            mov REG[0xd0],>__r0
+ 05D5 5203              mov A,[X+3]
+ 05D7 5300              mov [__r1],A
+ 05D9 5202              mov A,[X+2]
+ 05DB 5300              mov [__r0],A
+ 05DD 5100              mov A,[__r1]
+ 05DF 01FF              add A,-1
+ 05E1 5403              mov [X+3],A
+ 05E3 5100              mov A,[__r0]
+ 05E5 09FF              adc A,-1
+ 05E7 5402              mov [X+2],A
+ 05E9 5100              mov A,[__r0]
+ 05EB 60D5              mov REG[0xd5],A
+ 05ED 5020              mov A,32
+ 05EF 3F00              mvi [__r1],A
+ 05F1                   .dbline 194
+ 05F1 7701              inc [X+1]
+ 05F3 0F0000            adc [X+0],0
+ 05F6                   .dbline 195
+ 05F6           L48:
+ 05F6                   .dbline 192
+ 05F6           ;               while (len < wd){
+ 05F6 5201              mov A,[X+1]
+ 05F8 13F4              sub A,[X-12]
+ 05FA 52F3              mov A,[X-13]
+ 05FC 3180              xor A,-128
+ 05FE 62D000            mov REG[0xd0],>__r0
+ 0601 5300              mov [__rX],A
+ 0603 5200              mov A,[X+0]
+ 0605 3180              xor A,-128
+ 0607 1A00              sbb A,[__rX]
+ 0609 CFC8              jc L47
+ 060B           X20:
+ 060B                   .dbline 196
+ 060B           ;                       *(ptmp--) =  ' ';
+ 060B           ;                       len++;
+ 060B           ;               }
+ 060B           ;       }
+ 060B           L37:
+ 060B                   .dbline 199
+ 060B 560500            mov [X+5],0
+ 060E 560400            mov [X+4],0
+ 0611 8041              xjmp L53
+ 0613           L50:
+ 0613                   .dbline 199
+ 0613                   .dbline 200
+ 0613 62D000            mov REG[0xd0],>__r0
+ 0616 52F8              mov A,[X-8]
+ 0618 5300              mov [__r1],A
+ 061A 52F7              mov A,[X-9]
+ 061C 5300              mov [__r0],A
+ 061E 5100              mov A,[__r1]
+ 0620 0101              add A,1
+ 0622 54F8              mov [X-8],A
+ 0624 5100              mov A,[__r0]
+ 0626 0900              adc A,0
+ 0628 54F7              mov [X-9],A
+ 062A 5203              mov A,[X+3]
+ 062C 0101              add A,1
+ 062E 5300              mov [__r3],A
+ 0630 5202              mov A,[X+2]
+ 0632 0900              adc A,0
+ 0634 5300              mov [__r2],A
+ 0636 5100              mov A,[__r3]
+ 0638 5403              mov [X+3],A
+ 063A 5100              mov A,[__r2]
+ 063C 5402              mov [X+2],A
+ 063E 60D4              mov REG[0xd4],A
+ 0640 3E00              mvi A,[__r3]
+ 0642 7A00              dec [__r3]
+ 0644 5300              mov [__r2],A
+ 0646 5100              mov A,[__r0]
+ 0648 60D5              mov REG[0xd5],A
+ 064A 5100              mov A,[__r2]
+ 064C 3F00              mvi [__r1],A
+ 064E                   .dbline 201
+ 064E           L51:
+ 064E                   .dbline 199
+ 064E 7705              inc [X+5]
+ 0650 0F0400            adc [X+4],0
+ 0653           L53:
+ 0653                   .dbline 199
+ 0653           ; 
+ 0653           ;       /* 生成文字列のバッファコピー */
+ 0653           ;       for (i=0;i<len;i++){
+ 0653 5205              mov A,[X+5]
+ 0655 1301              sub A,[X+1]
+ 0657 5200              mov A,[X+0]
+ 0659 3180              xor A,-128
+ 065B 62D000            mov REG[0xd0],>__r0
+ 065E 5300              mov [__rX],A
+ 0660 5204              mov A,[X+4]
+ 0662 3180              xor A,-128
+ 0664 1A00              sbb A,[__rX]
+ 0666 CFAC              jc L50
+ 0668           X21:
+ 0668                   .dbline 203
+ 0668           ;               *(buff++) = *(++ptmp);
+ 0668           ;       }
+ 0668           ; 
+ 0668           ;       return (len);
+ 0668 62D000            mov REG[0xd0],>__r0
+ 066B 5201              mov A,[X+1]
+ 066D 5300              mov [__r1],A
+ 066F 5200              mov A,[X+0]
+ 0671 5300              mov [__r0],A
+ 0673                   .dbline -2
+ 0673           L25:
+ 0673 38EE              add SP,-18
+ 0675 20                pop X
+ 0676                   .dbline 0 ; func end
+ 0676 7F                ret
+ 0677                   .dbsym l tmp 8 A[10:10]c
+ 0677                   .dbsym l minus 6 I
+ 0677                   .dbsym l i 4 I
+ 0677                   .dbsym l ptmp 2 pc
+ 0677                   .dbsym l len 0 I
+ 0677                   .dbsym l wd -13 I
+ 0677                   .dbsym l zf -11 I
+ 0677                   .dbsym l buff -9 pc
+ 0677                   .dbsym l val -7 L
+ 0677                   .dbend
+ 0677                   .dbfunc s tsprintf_hexadecimal _tsprintf_hexadecimal fI
+ 0677           ;            tmp -> X+7
+ 0677           ;          str_a -> X+6
+ 0677           ;              i -> X+4
+ 0677           ;           ptmp -> X+2
+ 0677           ;            len -> X+0
+ 0677           ;             wd -> X-15
+ 0677           ;             zf -> X-13
+ 0677           ;        capital -> X-11
+ 0677           ;           buff -> X-9
+ 0677           ;            val -> X-7
+ 0677           _tsprintf_hexadecimal:
+ 0677                   .dbline -1
+ 0677 10                push X
+ 0678 4F                mov X,SP
+ 0679 3813              add SP,19
+ 067B                   .dbline 215
+ 067B           ; }
+ 067B           ; 
+ 067B           ; /** 数値 => 16進文字列変換
+ 067B           ;  * @param val 変換したい文字列データ
+ 067B           ;  * @param buff 変換した文字列データを格納するバッファへのポインタ
+ 067B           ;  * @param capital 1 : 16進のa～fを'A'～'F'にする
+ 067B           ;  * @param zf 1:文字列データ先頭部分に0を埋め込む
+ 067B           ;  * @param wd 文字列する場合の桁数指定(0～9)
+ 067B           ;  * @return 生成文字の文字数
+ 067B           ;  */
+ 067B           ; static int tsprintf_hexadecimal(unsigned long val,char* buff,
+ 067B           ;                                                               int capital,int zf,int wd){
+ 067B                   .dbline 218
+ 067B           ;       int i;
+ 067B           ;       char tmp[10];
+ 067B           ;       char* ptmp = tmp + 9;
+ 067B 62D000            mov REG[0xd0],>__r0
+ 067E 5A00              mov [__r1],X
+ 0680 060010            add [__r1],16
+ 0683 5100              mov A,[__r1]
+ 0685 5403              mov [X+3],A
+ 0687 560203            mov [X+2],3
+ 068A                   .dbline 219
+ 068A           ;       int len = 0;
+ 068A 560100            mov [X+1],0
+ 068D 560000            mov [X+0],0
+ 0690                   .dbline 223
+ 0690           ;       char str_a;
+ 0690           ; 
+ 0690           ;       /* A～Fを大文字にするか小文字にするか切り替える */
+ 0690           ;       if (capital){
+ 0690 3DF500            cmp [X-11],0
+ 0693 B006              jnz X23
+ 0695 3DF600            cmp [X-10],0
+ 0698 A006              jz L56
+ 069A           X23:
+ 069A                   .dbline 223
+ 069A                   .dbline 224
+ 069A           ;               str_a = 'A';
+ 069A 560641            mov [X+6],65
+ 069D                   .dbline 225
+ 069D 8004              xjmp L57
+ 069F           L56:
+ 069F                   .dbline 225
+ 069F           ;       } else {
+ 069F                   .dbline 226
+ 069F           ;               str_a = 'a';
+ 069F 560661            mov [X+6],97
+ 06A2                   .dbline 227
+ 06A2           ;       }
+ 06A2           L57:
+ 06A2                   .dbline 229
+ 06A2           ;       
+ 06A2           ;       if (!val){              /* 指定値が0の場合 */
+ 06A2 3DF900            cmp [X-7],0
+ 06A5 B0EE              jnz L61
+ 06A7 3DFA00            cmp [X-6],0
+ 06AA B0E9              jnz L61
+ 06AC 3DFB00            cmp [X-5],0
+ 06AF B0E4              jnz L61
+ 06B1 3DFC00            cmp [X-4],0
+ 06B4 B0DF              jnz L61
+ 06B6           X24:
+ 06B6                   .dbline 229
+ 06B6                   .dbline 230
+ 06B6           ;               *(ptmp--) = '0';
+ 06B6 62D000            mov REG[0xd0],>__r0
+ 06B9 5203              mov A,[X+3]
+ 06BB 5300              mov [__r1],A
+ 06BD 5202              mov A,[X+2]
+ 06BF 5300              mov [__r0],A
+ 06C1 5100              mov A,[__r1]
+ 06C3 01FF              add A,-1
+ 06C5 5403              mov [X+3],A
+ 06C7 5100              mov A,[__r0]
+ 06C9 09FF              adc A,-1
+ 06CB 5402              mov [X+2],A
+ 06CD 5100              mov A,[__r0]
+ 06CF 60D5              mov REG[0xd5],A
+ 06D1 5030              mov A,48
+ 06D3 3F00              mvi [__r1],A
+ 06D5                   .dbline 231
+ 06D5           ;               len++;
+ 06D5 7701              inc [X+1]
+ 06D7 0F0000            adc [X+0],0
+ 06DA                   .dbline 232
+ 06DA 8112              xjmp L68
+ 06DC           X22:
+ 06DC                   .dbline 232
+ 06DC           ;       } else {
+ 06DC           L60:
+ 06DC                   .dbline 233
+ 06DC           ;               while (val){
+ 06DC                   .dbline 235
+ 06DC           ;                       /* バッファアンダーフロー対策 */
+ 06DC           ;                       if (len >= 8){
+ 06DC 5201              mov A,[X+1]
+ 06DE 1108              sub A,8
+ 06E0 5200              mov A,[X+0]
+ 06E2 3180              xor A,-128
+ 06E4 1980              sbb A,(0 ^ 0x80)
+ 06E6 C003              jc L63
+ 06E8           X25:
+ 06E8                   .dbline 235
+ 06E8                   .dbline 236
+ 06E8           ;                               break;
+ 06E8 8104              xjmp L68
+ 06EA           L63:
+ 06EA                   .dbline 239
+ 06EA           ;                       }
+ 06EA           ; 
+ 06EA           ;                       *ptmp = (val % 16);
+ 06EA 62D000            mov REG[0xd0],>__r0
+ 06ED 52FC              mov A,[X-4]
+ 06EF 210F              and A,15
+ 06F1 5300              mov [__r0],A
+ 06F3 5203              mov A,[X+3]
+ 06F5 5300              mov [__r3],A
+ 06F7 5202              mov A,[X+2]
+ 06F9 60D5              mov REG[0xd5],A
+ 06FB 5100              mov A,[__r0]
+ 06FD 3F00              mvi [__r3],A
+ 06FF                   .dbline 240
+ 06FF           ;                       if (*ptmp > 9){
+ 06FF 5203              mov A,[X+3]
+ 0701 5300              mov [__r1],A
+ 0703 5202              mov A,[X+2]
+ 0705 60D4              mov REG[0xd4],A
+ 0707 3E00              mvi A,[__r1]
+ 0709 5300              mov [__r0],A
+ 070B 5009              mov A,9
+ 070D 3A00              cmp A,[__r0]
+ 070F D026              jnc L65
+ 0711           X26:
+ 0711                   .dbline 240
+ 0711                   .dbline 241
+ 0711           ;                               *ptmp += str_a - 10;
+ 0711 62D000            mov REG[0xd0],>__r0
+ 0714 5206              mov A,[X+6]
+ 0716 110A              sub A,10
+ 0718 5300              mov [__r0],A
+ 071A 5203              mov A,[X+3]
+ 071C 5300              mov [__r3],A
+ 071E 5202              mov A,[X+2]
+ 0720 60D4              mov REG[0xd4],A
+ 0722 3E00              mvi A,[__r3]
+ 0724 0200              add A,[__r0]
+ 0726 5300              mov [__r0],A
+ 0728 5203              mov A,[X+3]
+ 072A 5300              mov [__r3],A
+ 072C 5202              mov A,[X+2]
+ 072E 60D5              mov REG[0xd5],A
+ 0730 5100              mov A,[__r0]
+ 0732 3F00              mvi [__r3],A
+ 0734                   .dbline 242
+ 0734 801F              xjmp L66
+ 0736           L65:
+ 0736                   .dbline 242
+ 0736           ;                       } else {
+ 0736                   .dbline 243
+ 0736           ;                               *ptmp += '0';
+ 0736 62D000            mov REG[0xd0],>__r0
+ 0739 5203              mov A,[X+3]
+ 073B 5300              mov [__r1],A
+ 073D 5202              mov A,[X+2]
+ 073F 60D4              mov REG[0xd4],A
+ 0741 3E00              mvi A,[__r1]
+ 0743 5300              mov [__r0],A
+ 0745 060030            add [__r0],48
+ 0748 5203              mov A,[X+3]
+ 074A 5300              mov [__r3],A
+ 074C 5202              mov A,[X+2]
+ 074E 60D5              mov REG[0xd5],A
+ 0750 5100              mov A,[__r0]
+ 0752 3F00              mvi [__r3],A
+ 0754                   .dbline 244
+ 0754           ;                       }
+ 0754           L66:
+ 0754                   .dbline 246
+ 0754 62D000            mov REG[0xd0],>__r0
+ 0757 52F9              mov A,[X-7]
+ 0759 5300              mov [__r0],A
+ 075B 52FA              mov A,[X-6]
+ 075D 5300              mov [__r1],A
+ 075F 52FB              mov A,[X-5]
+ 0761 5300              mov [__r2],A
+ 0763 52FC              mov A,[X-4]
+ 0765 5300              mov [__r3],A
+ 0767 5004              mov A,4
+ 0769           X27:
+ 0769 70FB              and F,-5
+ 076B 62D000            mov REG[0xd0],>__r0
+ 076E 6E00              rrc [__r0]
+ 0770 6E00              rrc [__r1]
+ 0772 6E00              rrc [__r2]
+ 0774 6E00              rrc [__r3]
+ 0776 78                dec A
+ 0777 BFF1              jnz X27
+ 0779 5100              mov A,[__r0]
+ 077B 54F9              mov [X-7],A
+ 077D 5100              mov A,[__r1]
+ 077F 54FA              mov [X-6],A
+ 0781 5100              mov A,[__r2]
+ 0783 54FB              mov [X-5],A
+ 0785 5100              mov A,[__r3]
+ 0787 54FC              mov [X-4],A
+ 0789                   .dbline 247
+ 0789 0703FF            add [X+3],-1
+ 078C 0F02FF            adc [X+2],-1
+ 078F                   .dbline 248
+ 078F 7701              inc [X+1]
+ 0791 0F0000            adc [X+0],0
+ 0794                   .dbline 249
+ 0794           L61:
+ 0794                   .dbline 233
+ 0794 3DF900            cmp [X-7],0
+ 0797 BF44              jnz L60
+ 0799 3DFA00            cmp [X-6],0
+ 079C BF3F              jnz L60
+ 079E 3DFB00            cmp [X-5],0
+ 07A1 BF3A              jnz L60
+ 07A3 3DFC00            cmp [X-4],0
+ 07A6 BF35              jnz L60
+ 07A8           X28:
+ 07A8                   .dbline 250
+ 07A8           ;               
+ 07A8           ;                       val >>= 4;              /* 16で割る */
+ 07A8           ;                       ptmp--;
+ 07A8           ;                       len++;
+ 07A8           ;               }
+ 07A8           ;       }
+ 07A8 8044              xjmp L68
+ 07AA           L67:
+ 07AA                   .dbline 251
+ 07AA           ;       while (len < wd){
+ 07AA                   .dbline 252
+ 07AA           ;               *(ptmp--) =  zf ? '0' : ' ';
+ 07AA 62D000            mov REG[0xd0],>__r0
+ 07AD 5203              mov A,[X+3]
+ 07AF 5300              mov [__r1],A
+ 07B1 5202              mov A,[X+2]
+ 07B3 5300              mov [__r0],A
+ 07B5 5100              mov A,[__r1]
+ 07B7 01FF              add A,-1
+ 07B9 5403              mov [X+3],A
+ 07BB 5100              mov A,[__r0]
+ 07BD 09FF              adc A,-1
+ 07BF 5402              mov [X+2],A
+ 07C1 3DF300            cmp [X-13],0
+ 07C4 B006              jnz X29
+ 07C6 3DF400            cmp [X-12],0
+ 07C9 A009              jz L71
+ 07CB           X29:
+ 07CB 561230            mov [X+18],48
+ 07CE 561100            mov [X+17],0
+ 07D1 8007              xjmp L72
+ 07D3           L71:
+ 07D3 561220            mov [X+18],32
+ 07D6 561100            mov [X+17],0
+ 07D9           L72:
+ 07D9 62D000            mov REG[0xd0],>__r0
+ 07DC 5212              mov A,[X+18]
+ 07DE 5300              mov [__r2],A
+ 07E0 5100              mov A,[__r0]
+ 07E2 60D5              mov REG[0xd5],A
+ 07E4 5100              mov A,[__r2]
+ 07E6 3F00              mvi [__r1],A
+ 07E8                   .dbline 253
+ 07E8 7701              inc [X+1]
+ 07EA 0F0000            adc [X+0],0
+ 07ED                   .dbline 254
+ 07ED           L68:
+ 07ED                   .dbline 251
+ 07ED 5201              mov A,[X+1]
+ 07EF 13F2              sub A,[X-14]
+ 07F1 52F1              mov A,[X-15]
+ 07F3 3180              xor A,-128
+ 07F5 62D000            mov REG[0xd0],>__r0
+ 07F8 5300              mov [__rX],A
+ 07FA 5200              mov A,[X+0]
+ 07FC 3180              xor A,-128
+ 07FE 1A00              sbb A,[__rX]
+ 0800 CFA9              jc L67
+ 0802           X30:
+ 0802                   .dbline 256
+ 0802 560500            mov [X+5],0
+ 0805 560400            mov [X+4],0
+ 0808 8041              xjmp L76
+ 080A           L73:
+ 080A                   .dbline 256
+ 080A                   .dbline 257
+ 080A 62D000            mov REG[0xd0],>__r0
+ 080D 52F8              mov A,[X-8]
+ 080F 5300              mov [__r1],A
+ 0811 52F7              mov A,[X-9]
+ 0813 5300              mov [__r0],A
+ 0815 5100              mov A,[__r1]
+ 0817 0101              add A,1
+ 0819 54F8              mov [X-8],A
+ 081B 5100              mov A,[__r0]
+ 081D 0900              adc A,0
+ 081F 54F7              mov [X-9],A
+ 0821 5203              mov A,[X+3]
+ 0823 0101              add A,1
+ 0825 5300              mov [__r3],A
+ 0827 5202              mov A,[X+2]
+ 0829 0900              adc A,0
+ 082B 5300              mov [__r2],A
+ 082D 5100              mov A,[__r3]
+ 082F 5403              mov [X+3],A
+ 0831 5100              mov A,[__r2]
+ 0833 5402              mov [X+2],A
+ 0835 60D4              mov REG[0xd4],A
+ 0837 3E00              mvi A,[__r3]
+ 0839 7A00              dec [__r3]
+ 083B 5300              mov [__r2],A
+ 083D 5100              mov A,[__r0]
+ 083F 60D5              mov REG[0xd5],A
+ 0841 5100              mov A,[__r2]
+ 0843 3F00              mvi [__r1],A
+ 0845                   .dbline 258
+ 0845           L74:
+ 0845                   .dbline 256
+ 0845 7705              inc [X+5]
+ 0847 0F0400            adc [X+4],0
+ 084A           L76:
+ 084A                   .dbline 256
+ 084A           ;               len++;
+ 084A           ;       }
+ 084A           ;               
+ 084A           ;       for (i=0;i<len;i++){
+ 084A 5205              mov A,[X+5]
+ 084C 1301              sub A,[X+1]
+ 084E 5200              mov A,[X+0]
+ 0850 3180              xor A,-128
+ 0852 62D000            mov REG[0xd0],>__r0
+ 0855 5300              mov [__rX],A
+ 0857 5204              mov A,[X+4]
+ 0859 3180              xor A,-128
+ 085B 1A00              sbb A,[__rX]
+ 085D CFAC              jc L73
+ 085F           X31:
+ 085F                   .dbline 260
+ 085F           ;               *(buff++) = *(++ptmp);
+ 085F           ;       }
+ 085F           ; 
+ 085F           ;       return(len);
+ 085F 62D000            mov REG[0xd0],>__r0
+ 0862 5201              mov A,[X+1]
+ 0864 5300              mov [__r1],A
+ 0866 5200              mov A,[X+0]
+ 0868 5300              mov [__r0],A
+ 086A                   .dbline -2
+ 086A           L54:
+ 086A 38ED              add SP,-19
+ 086C 20                pop X
+ 086D                   .dbline 0 ; func end
+ 086D 7F                ret
+ 086E                   .dbsym l tmp 7 A[10:10]c
+ 086E                   .dbsym l str_a 6 c
+ 086E                   .dbsym l i 4 I
+ 086E                   .dbsym l ptmp 2 pc
+ 086E                   .dbsym l len 0 I
+ 086E                   .dbsym l wd -15 I
+ 086E                   .dbsym l zf -13 I
+ 086E                   .dbsym l capital -11 I
+ 086E                   .dbsym l buff -9 pc
+ 086E                   .dbsym l val -7 l
+ 086E                   .dbend
+ 086E                   .dbfunc s tsprintf_char _tsprintf_char fI
+ 086E           ;           buff -> X-7
+ 086E           ;             ch -> X-5
+ 086E           _tsprintf_char:
+ 086E                   .dbline -1
+ 086E 10                push X
+ 086F 4F                mov X,SP
+ 0870                   .dbline 268
+ 0870           ; }
+ 0870           ; 
+ 0870           ; /** 1キャラクタ表示
+ 0870           ;  * @param ch 文字データのコード値
+ 0870           ;  * @param buff 変換した文字列データを格納するバッファへのポインタ
+ 0870           ;  * @return 生成文字の文字数
+ 0870           ;  */
+ 0870           ; static int tsprintf_char(int ch,char* buff){
+ 0870                   .dbline 269
+ 0870           ;       *buff = (char)ch;
+ 0870 62D000            mov REG[0xd0],>__r0
+ 0873 52FC              mov A,[X-4]
+ 0875 5300              mov [__r0],A
+ 0877 52FA              mov A,[X-6]
+ 0879 5300              mov [__r3],A
+ 087B 52F9              mov A,[X-7]
+ 087D 60D5              mov REG[0xd5],A
+ 087F 5100              mov A,[__r0]
+ 0881 3F00              mvi [__r3],A
+ 0883                   .dbline 270
+ 0883           ;       return(1);
+ 0883 550001            mov [__r1],1
+ 0886 550000            mov [__r0],0
+ 0889                   .dbline -2
+ 0889           L77:
+ 0889 20                pop X
+ 088A                   .dbline 0 ; func end
+ 088A 7F                ret
+ 088B                   .dbsym l buff -7 pc
+ 088B                   .dbsym l ch -5 I
+ 088B                   .dbend
+ 088B                   .dbfunc s tsprintf_string _tsprintf_string fI
+ 088B           ;          count -> X+0
+ 088B           ;           buff -> X-7
+ 088B           ;            str -> X-5
+ 088B           _tsprintf_string:
+ 088B                   .dbline -1
+ 088B 10                push X
+ 088C 4F                mov X,SP
+ 088D 3802              add SP,2
+ 088F                   .dbline 278
+ 088F           ; }
+ 088F           ; 
+ 088F           ; /** ASCIIZ文字列表示(文字列はRAM内に確保すること)
+ 088F           ;  * @param str ASCIIZ文字列データへのポインタ
+ 088F           ;  * @param buff 変換した文字列データを格納するバッファへのポインタ
+ 088F           ;  * @return 生成文字の文字数
+ 088F           ;  */
+ 088F           ; static int tsprintf_string(char* str,char* buff){
+ 088F                   .dbline 279
+ 088F           ;       int count = 0;
+ 088F 560100            mov [X+1],0
+ 0892 560000            mov [X+0],0
+ 0895 8036              xjmp L80
+ 0897           L79:
+ 0897                   .dbline 280
+ 0897                   .dbline 281
+ 0897 62D000            mov REG[0xd0],>__r0
+ 089A 52FA              mov A,[X-6]
+ 089C 5300              mov [__r1],A
+ 089E 52F9              mov A,[X-7]
+ 08A0 5300              mov [__r0],A
+ 08A2 5100              mov A,[__r1]
+ 08A4 0101              add A,1
+ 08A6 54FA              mov [X-6],A
+ 08A8 5100              mov A,[__r0]
+ 08AA 0900              adc A,0
+ 08AC 54F9              mov [X-7],A
+ 08AE 52FC              mov A,[X-4]
+ 08B0 5300              mov [__r3],A
+ 08B2 52FB              mov A,[X-5]
+ 08B4 60D4              mov REG[0xd4],A
+ 08B6 3E00              mvi A,[__r3]
+ 08B8 5300              mov [__r2],A
+ 08BA 5100              mov A,[__r0]
+ 08BC 60D5              mov REG[0xd5],A
+ 08BE 5100              mov A,[__r2]
+ 08C0 3F00              mvi [__r1],A
+ 08C2                   .dbline 282
+ 08C2 77FC              inc [X-4]
+ 08C4 0FFB00            adc [X-5],0
+ 08C7                   .dbline 283
+ 08C7 7701              inc [X+1]
+ 08C9 0F0000            adc [X+0],0
+ 08CC                   .dbline 284
+ 08CC           L80:
+ 08CC                   .dbline 280
+ 08CC           ;       while(*str){
+ 08CC 62D000            mov REG[0xd0],>__r0
+ 08CF 52FC              mov A,[X-4]
+ 08D1 5300              mov [__r1],A
+ 08D3 52FB              mov A,[X-5]
+ 08D5 60D4              mov REG[0xd4],A
+ 08D7 3E00              mvi A,[__r1]
+ 08D9 3900              cmp A,0
+ 08DB BFBB              jnz L79
+ 08DD                   .dbline 285
+ 08DD           ;               *(buff++) = *str;
+ 08DD           ;               str++;
+ 08DD           ;               count++;
+ 08DD           ;       }
+ 08DD           ;       return(count);
+ 08DD 5201              mov A,[X+1]
+ 08DF 5300              mov [__r1],A
+ 08E1 5200              mov A,[X+0]
+ 08E3 5300              mov [__r0],A
+ 08E5                   .dbline -2
+ 08E5           L78:
+ 08E5 38FE              add SP,-2
+ 08E7 20                pop X
+ 08E8                   .dbline 0 ; func end
+ 08E8 7F                ret
+ 08E9                   .dbsym l count 0 I
+ 08E9                   .dbsym l buff -7 pc
+ 08E9                   .dbsym l str -5 pc
+ 08E9                   .dbend
+ 08E9                   .dbfunc s tsprintf_cstring _tsprintf_cstring fI
+ 08E9           ;          count -> X+0
+ 08E9           ;           buff -> X-7
+ 08E9           ;            str -> X-5
+ 08E9           _tsprintf_cstring:
+ 08E9                   .dbline -1
+ 08E9 10                push X
+ 08EA 4F                mov X,SP
+ 08EB 3802              add SP,2
+ 08ED                   .dbline 293
+ 08ED           ; }
+ 08ED           ; 
+ 08ED           ; /** Const ASCIIZ文字列表示(文字列はROM内に確保すること)
+ 08ED           ;  * @param str ASCIIZ文字列データへのポインタ
+ 08ED           ;  * @param buff 変換した文字列データを格納するバッファへのポインタ
+ 08ED           ;  * @return 生成文字の文字数
+ 08ED           ;  */
+ 08ED           ; static int tsprintf_cstring(const char* str,char* buff){
+ 08ED                   .dbline 294
+ 08ED           ;       int count = 0;
+ 08ED 560100            mov [X+1],0
+ 08F0 560000            mov [X+0],0
+ 08F3 8037              xjmp L84
+ 08F5           L83:
+ 08F5                   .dbline 295
+ 08F5                   .dbline 296
+ 08F5 62D000            mov REG[0xd0],>__r0
+ 08F8 52FA              mov A,[X-6]
+ 08FA 5300              mov [__r1],A
+ 08FC 52F9              mov A,[X-7]
+ 08FE 5300              mov [__r0],A
+ 0900 5100              mov A,[__r1]
+ 0902 0101              add A,1
+ 0904 54FA              mov [X-6],A
+ 0906 5100              mov A,[__r0]
+ 0908 0900              adc A,0
+ 090A 54F9              mov [X-7],A
+ 090C 52FC              mov A,[X-4]
+ 090E 5300              mov [__r3],A
+ 0910 52FB              mov A,[X-5]
+ 0912 10                push X
+ 0913 5800              mov X,[__r3]
+ 0915 28                romx
+ 0916 20                pop X
+ 0917 5300              mov [__r2],A
+ 0919 5100              mov A,[__r0]
+ 091B 60D5              mov REG[0xd5],A
+ 091D 5100              mov A,[__r2]
+ 091F 3F00              mvi [__r1],A
+ 0921                   .dbline 297
+ 0921 77FC              inc [X-4]
+ 0923 0FFB00            adc [X-5],0
+ 0926                   .dbline 298
+ 0926 7701              inc [X+1]
+ 0928 0F0000            adc [X+0],0
+ 092B                   .dbline 299
+ 092B           L84:
+ 092B                   .dbline 295
+ 092B           ;       while(*str){
+ 092B 62D000            mov REG[0xd0],>__r0
+ 092E 52FC              mov A,[X-4]
+ 0930 5300              mov [__r1],A
+ 0932 52FB              mov A,[X-5]
+ 0934 10                push X
+ 0935 5800              mov X,[__r1]
+ 0937 28                romx
+ 0938 20                pop X
+ 0939 3900              cmp A,0
+ 093B BFB9              jnz L83
+ 093D                   .dbline 300
+ 093D           ;               *(buff++) = *str;
+ 093D           ;               str++;
+ 093D           ;               count++;
+ 093D           ;       }
+ 093D           ;       return(count);
+ 093D 5201              mov A,[X+1]
+ 093F 5300              mov [__r1],A
+ 0941 5200              mov A,[X+0]
+ 0943 5300              mov [__r0],A
+ 0945                   .dbline -2
+ 0945           L82:
+ 0945 38FE              add SP,-2
+ 0947 20                pop X
+ 0948                   .dbline 0 ; func end
+ 0948 7F                ret
+ 0949                   .dbsym l count 0 I
+ 0949                   .dbsym l buff -7 pc
+ 0949                   .dbsym l str -5 pc
+ 0949                   .dbend

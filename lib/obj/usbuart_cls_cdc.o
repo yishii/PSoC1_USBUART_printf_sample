@@ -1,0 +1,184 @@
+XH
+H 3 areas C global symbols
+M usbuart_cls_cdc.asm
+S USBUART_t2 Ref0000
+S USBUART_GetTableEntry Ref0000
+S USBUART_NoDataStageControlTransfer Ref0000
+S USBUART_Not_Supported Ref0000
+A text size 0 flags 0
+dbfile lib/usbuart_cls_cdc.asm
+dbfunc 0 ? 0 I
+dbfile memory.inc
+dbfunc 0 ? 0 I
+dbfile lib/usbuart_cls_cdc.asm
+dbfunc 0 ? 0 I
+dbfile ./lib/USBUART.inc
+dbfunc 0 ? 0 I
+dbfile lib/usbuart_cls_cdc.asm
+dbfunc 0 ? 0 I
+dbfile ./lib/USBUART_macros.inc
+dbfunc 0 ? 0 I
+dbfile lib/usbuart_cls_cdc.asm
+dbfunc 0 ? 0 I
+dbfile C:/PROGRA~1/CYPRES~1/PSOCDE~1/tools/include/CY8C24~1/m8c.inc
+dbfunc 0 ? 0 I
+A InterruptRAM size 11 flags 20
+S USBUART_LineControlBitmap Def000F
+S USBUART_LineCoding Def0008
+S _USBUART_LineControlBitmap Def000F
+S _USBUART_LineCoding Def0008
+A UserModules size 100 flags 0
+dbfile lib/usbuart_cls_cdc.asm
+dbfunc 0 ? 12 I
+dbline 3F 12
+dbline 40 14
+dbline 41 16
+dbline 42 18
+dbline 43 1A
+dbline 44 1C
+dbline 45 1E
+dbline 46 20
+dbline 47 22
+dbline 48 24
+dbline 49 26
+dbline 4A 28
+dbline 4B 2A
+dbline 4C 2C
+dbline 4D 2E
+dbline 4E 30
+dbline 4F 32
+dbline 50 34
+dbline 51 36
+dbline 52 38
+dbline 53 3A
+dbline 54 3C
+dbline 55 3E
+dbline 56 40
+dbline 57 42
+dbline 58 44
+dbline 59 46
+dbline 5A 48
+dbline 5B 4A
+dbline 5C 4C
+dbline 5D 4E
+dbline 5E 50
+dbline 5F 52
+dbline 60 54
+dbline 61 56
+dbline 66 58
+dbline 67 5C
+dbline 6B 64
+dbline 6C 66
+dbline 6D 68
+dbline 6E 6A
+dbline 6F 6C
+dbline 70 6E
+dbline 71 70
+dbline 72 72
+dbline 73 74
+dbline 74 76
+dbline 75 78
+dbline 76 7A
+dbline 77 7C
+dbline 78 7E
+dbline 79 80
+dbline 7A 82
+dbline 7B 84
+dbline 7C 86
+dbline 7D 88
+dbline 7E 8A
+dbline 7F 8C
+dbline 80 8E
+dbline 81 90
+dbline 82 92
+dbline 83 94
+dbline 84 96
+dbline 85 98
+dbline 86 9A
+dbline 87 9C
+dbline 88 9E
+dbline 89 A0
+dbline 8A A2
+dbline 8B A4
+dbline 8C A6
+dbline 91 A8
+dbline 92 AC
+dbline A1 B4
+dbline A2 B6
+dbline A3 B8
+dbline A4 BA
+dbline A5 BC
+dbline A6 BE
+dbline A7 C0
+dbline B6 C3
+dbline B7 C5
+dbline B8 C7
+dbline B9 C9
+dbline BA CB
+dbline BB CD
+dbline BC CF
+dbline CB D2
+dbline CC D4
+dbline CD D6
+dbline CE D8
+dbline CF DA
+dbline D0 DC
+dbline DF DF
+dbline E0 E1
+dbline E1 E3
+dbline E2 E5
+dbline E3 E7
+dbline E4 E9
+dbline E5 EB
+dbline F6 EE
+dbline F7 F0
+dbline F8 F2
+dbline F9 F4
+dbline FA F6
+dbline FB F8
+dbline FC FA
+dbline 104 FD
+S USBUART_DT_d2h_cls_ifc_Dispatch Def00A8
+S USBUART_DT_h2d_cls_ifc_Dispatch Def0058
+S $lb$GetSetEncapsulatedCommand Def0000
+S $le$GetSetEncapsulatedCommand Def0012
+T 00 00 00 01 00 08 00 00 00 00 DE 00 01 00 07
+R 00 00 00 02 00 06 00 01
+T 00 0D 00 08 00 00 DE 80 A1 80 E8 80 E6 80 E4 80
+R 00 00 00 02 00 02 00 01
+T 00 1B E2 80 E0 80 DE 80 DC 80 DA 80 D8 80 D6 80
+R 00 00 00 02
+T 00 29 D4 80 D2 80 D0 80 CE 80 CC 80 CA 80 C8 80
+R 00 00 00 02
+T 00 37 C6 80 C4 80 C2 80 C0 80 BE 80 BC 80 BA 80
+R 00 00 00 02
+T 00 45 B8 80 B6 80 B4 80 B2 80 B0 80 AE 80 AC 80
+R 00 00 00 02
+T 00 53 70 80 A8 80 7B 5D 59 39 23 D0 04 64 EF B2
+R 00 00 00 02
+T 00 61 7D 00 FD 80 98 80 78 80 94 80 92 80 90 80
+R 00 00 00 02 00 03 00 02
+T 00 6F 8E 80 8C 80 8A 80 88 80 86 80 84 80 82 80
+R 00 00 00 02
+T 00 7D 80 80 7E 80 7C 80 7A 80 78 80 76 80 74 80
+R 00 00 00 02
+T 00 8B 72 80 70 80 6E 80 6C 80 6A 80 68 80 66 80
+R 00 00 00 02
+T 00 99 64 80 62 80 60 80 5E 80 5C 80 5A 80 58 80
+R 00 00 00 02
+T 00 A7 47 5D 59 39 22 D0 04 64 EF B4 7D 00 FD 5D
+R 00 00 00 02 00 0D 00 02
+T 00 B5 5C 39 02 D0 44 53 00 00 50 00 00 57 00 00
+R 00 00 00 02 0B 08 00 00 49 0B 00 02 09 0E 00 02
+T 00 C0 7D 00 00 5D 5C 39 02 D0 35 53 00 00 50
+R 00 00 00 02 02 03 00 01 0B 0C 00 00
+T 00 CC 00 09 57 00 09 7D 00 00 5D 5C 39 02 D0 26
+R 00 00 00 02 49 02 00 02 09 05 00 02 02 08 00 01
+T 00 D8 5D 5A 53 00 10 7D 00 00 5D 5C 39 02 D0 19
+R 00 00 00 02 09 05 00 01 02 08 00 02
+T 00 E5 53 00 00 50 00 00 57 00 00 7D
+R 00 00 00 02 0B 03 00 00 49 06 00 02 09 09 00 02
+T 00 EC 00 00 5D 5C 39 02 D0 0A 53 00 00 50 00 09
+R 00 00 00 02 02 02 00 01 0B 0B 00 00 49 0E 00 02
+T 00 F8 57 00 09 7D 00 00 7D 00 00
+R 00 00 00 02 09 03 00 02 02 06 00 01 02 09 00 03
